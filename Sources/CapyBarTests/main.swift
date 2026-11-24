@@ -10,6 +10,7 @@ presserTests()
 outsideClickTests()
 updateTests()
 await restrictionTests()
+await reliabilityTests()
 
 print(failures == 0 ? "\nall \(passed) passed" : "\n\(failures) failed, \(passed) passed")
 exit(failures == 0 ? 0 : 1)

@@ -1,6 +1,9 @@
 import AppKit
 import CapyBarCore
 import Observation
+import os
+
+private let logger = Logger(subsystem: "app.capybar.CapyBar", category: "controller")
 
 /// Event-driven only: it reacts to app launches and quits and to user actions; nothing
 /// runs on a repeating timer. Accessibility scans happen when the panel or settings
@@ -44,9 +47,6 @@ final class CubbyController {
     static let launchDebounce: Duration = .milliseconds(500)
     /// How long a revealed app that was never laid out may take to publish its icons.
     static let revealTimeout: TimeInterval = 1.5
-    /// A freshly started MenuBarAgent needs a moment; attempt N waits N times this long.
-    static let resendDelay: Duration = .seconds(1)
-    static let resendAttempts = 3
 
     // Derived lists are rebuilt only when their inputs change, never per SwiftUI render.
     private(set) var appEntries: [AppEntry] = []
@@ -88,7 +88,11 @@ final class CubbyController {
 
     /// Temporarily shows every icon. Not remembered across launches.
     var isPaused = false {
-        didSet { if isPaused != oldValue { apply() } }
+        didSet {
+            guard isPaused != oldValue else { return }
+            if isPaused { keeper.cancel() }
+            apply()
+        }
     }
 
     let ownID: String
@@ -120,7 +124,15 @@ final class CubbyController {
     @ObservationIgnored private var askedForAccessibility = false
     @ObservationIgnored private var trustObserver: NSObjectProtocol?
     @ObservationIgnored private var agentWatch = MenuBarAgentWatch(currentPID: nil)
-    @ObservationIgnored private var resendTask: Task<Void, Never>?
+    @ObservationIgnored private var workspaceObservers: [NSObjectProtocol] = []
+    /// Sends the restriction again after MenuBarAgent restarts, the Mac wakes, the
+    /// session comes back or a send fails (see `RestrictionKeeper`).
+    @ObservationIgnored private lazy var keeper = RestrictionKeeper(
+        isWanted: { [weak self] in self?.wantsRestriction ?? false },
+        resend: { [weak self] done in
+            guard let self else { return done(false) }
+            send(force: true) { failure in done(failure == nil) }
+        })
 
     var isRestrictionAvailable: Bool { restriction.isAvailable }
 
@@ -221,9 +233,25 @@ final class CubbyController {
             @Sendable [weak self] _, _ in
             DispatchQueue.main.async { self?.scheduleRunningAppsCheck() }
         }
+        watchSleepAndSessions()
         // Apps launched at login before CapyBar and never seen: check them like new ones.
         considerNewApps(running.subtracting(known))
         apply()
+    }
+
+    /// The restriction lives in MenuBarAgent and may not outlast sleep or a switch to
+    /// another user, so it is sent again when either ends.
+    private func watchSleepAndSessions() {
+        let center = NSWorkspace.shared.notificationCenter
+        let events: [(Notification.Name, RestrictionKeeper.Trigger)] = [
+            (NSWorkspace.didWakeNotification, .woke),
+            (NSWorkspace.sessionDidBecomeActiveNotification, .sessionActivated),
+        ]
+        workspaceObservers = events.map { name, trigger in
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.keeper.trigger(trigger) }
+            }
+        }
     }
 
     /// The panel's button for a copy outside /Applications that did not move itself at
@@ -247,6 +275,9 @@ final class CubbyController {
     func stop() {
         runningObservation?.invalidate()
         runningObservation = nil
+        workspaceObservers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)
+        workspaceObservers = []
+        keeper.cancel()
         restriction.clear()
     }
 
@@ -256,7 +287,8 @@ final class CubbyController {
     /// catches it.
     private func scheduleRunningAppsCheck() {
         if agentWatch.observe(MenuBarAgentWatch.currentPID()) {
-            scheduleResend(attempt: 1)
+            logger.info("MenuBarAgent restarted")
+            keeper.trigger(.agentRestarted)
         }
         if !hidden.isEmpty, !runningBundleIDs.subtracting(lastRunning).isDisjoint(with: hidden) {
             runningAppsChanged()
@@ -269,19 +301,6 @@ final class CubbyController {
             guard let self else { return }
             runningCheckScheduled = false
             runningAppsChanged()
-        }
-    }
-
-    /// Sends the restriction to a restarted MenuBarAgent, retrying if it isn't ready yet.
-    private func scheduleResend(attempt: Int) {
-        // A newer MenuBarAgent replaces a resend still waiting for an older one.
-        resendTask?.cancel()
-        resendTask = Task { [weak self] in
-            guard (try? await Task.sleep(for: Self.resendDelay * attempt)) != nil, let self else { return }
-            apply(force: true) { [weak self] in
-                guard let self, attempt < Self.resendAttempts else { return }
-                if restriction.allowed == nil, wantsRestriction { scheduleResend(attempt: attempt + 1) }
-            }
         }
     }
 
@@ -379,11 +398,21 @@ final class CubbyController {
 
     /// Recomputes the allowlist and hands it to MenuBarAgent (skipped when unchanged).
     /// The completion always runs, also when nothing needs hiding or the call fails.
-    func apply(force: Bool = false, completion: (@MainActor () -> Void)? = nil) {
+    /// A refused restriction leaves every icon visible, so the keeper tries again.
+    func apply(completion: (@MainActor () -> Void)? = nil) {
+        send(force: false) { [weak self] failure in
+            if case .rejected = failure { self?.keeper.trigger(.failed) }
+            completion?()
+        }
+    }
+
+    /// One attempt, without retries: `apply` and the keeper's resends both end here.
+    /// The completion gets nil also when nothing needs hiding.
+    private func send(force: Bool, completion: @escaping @MainActor (Restriction.Failure?) -> Void) {
         let running = runningBundleIDs
         guard wantsRestriction(running: running) else {
             restriction.clear()
-            completion?()
+            completion(nil)
             return
         }
         let allowed = Allowlist.compute(
@@ -394,7 +423,7 @@ final class CubbyController {
             } else if let self, let message, Self.restrictionMessages.contains(message) {
                 self.message = nil  // an earlier failure no longer holds
             }
-            completion?()
+            completion(failure)
         }
     }
 
