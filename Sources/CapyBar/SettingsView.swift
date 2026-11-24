@@ -13,7 +13,7 @@ struct SettingsSection: View {
     private static let maxListHeight: CGFloat = 240
     /// Rough height of the Options card; the taller tab sets the area's height, so
     /// switching tabs does not make the panel jump.
-    private static let optionsHeight: CGFloat = 124
+    private static let optionsHeight: CGFloat = 150
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -28,10 +28,7 @@ struct SettingsSection: View {
             HStack {
                 VersionLabel()
                 Spacer()
-                // Quit and Uninstall live in the icon's right-click menu.
-                Text("Right-click the icon for more")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                TipsButton(hotkey: controller.hotkey)
             }
         }
         .controlSize(.small)
@@ -63,6 +60,8 @@ struct SettingsSection: View {
                 Text("Hide new apps automatically")
             }
             .help("Hide a newly installed app’s icon the first time it appears")
+            CardDivider()
+            ShortcutRow(controller: controller)
             CardDivider()
             SwitchRow(isOn: openAtLogin) {
                 Text("Open at login")
@@ -181,6 +180,151 @@ private struct AppRow: View {
             return "Not running. Its icon stays hidden next time it starts; turn off to forget it."
         }
         return isHidden ? "Hidden in CapyBar" : "Shown in the menu bar"
+    }
+}
+
+/// A "?" that lists what the keyboard and the right-click menu can do. Help lives here,
+/// out of the way, instead of hints in the panel itself.
+private struct TipsButton: View {
+    let hotkey: KeyCombo?
+    @State private var isShown = false
+
+    var body: some View {
+        Button {
+            isShown.toggle()
+        } label: {
+            Image(systemName: "questionmark.circle")
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .focusable(false)
+        .help("Help")
+        .accessibilityLabel("Help")
+        .popover(isPresented: $isShown, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 10) {
+                Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
+                    if let hotkey { tip(hotkey.displayString, "Open CapyBar") }
+                    tip("Type or ⌘F", "Search")
+                    tip("← → ↑ ↓", "Choose an icon")
+                    tip("Return", "Open its menu")
+                    tip("Esc", "Close search, then CapyBar")
+                    tip("Right-click", "More, like Show All Icons")
+                }
+                if hotkey == nil {
+                    Text("Set a keyboard shortcut in Options to open CapyBar from any app.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .font(.callout)
+            .padding(12)
+            .frame(width: 260, alignment: .leading)
+        }
+    }
+
+    private func tip(_ keys: String, _ text: String) -> some View {
+        GridRow {
+            Text(keys)
+                .foregroundStyle(.secondary)
+                .gridColumnAlignment(.trailing)
+            Text(text)
+        }
+    }
+}
+
+/// The global shortcut, recorded in place like in System Settings: click the key box,
+/// press the keys. Escape cancels, Delete removes it.
+private struct ShortcutRow: View {
+    let controller: CubbyController
+    @State private var monitor: Any?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                Text("Keyboard shortcut")
+                Spacer(minLength: 8)
+                keyBox
+            }
+            if let problem = controller.hotkeyProblem {
+                Text(problem)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .help("Opens CapyBar from any app. Click the box, then press the keys.")
+        .onChange(of: controller.isRecordingHotkey) { _, isRecording in
+            isRecording ? startRecording() : stopRecording()
+        }
+        .onDisappear {
+            // Settings close together with the panel, possibly before onChange runs:
+            // never leave the monitor swallowing keys.
+            stopRecording()
+            controller.isRecordingHotkey = false
+        }
+    }
+
+    private var keyBox: some View {
+        HStack(spacing: 2) {
+            Text(title)
+                .foregroundStyle(controller.hotkey == nil || controller.isRecordingHotkey ? .secondary : .primary)
+                .lineLimit(1)
+            if controller.hotkey != nil, !controller.isRecordingHotkey {
+                Button {
+                    controller.setHotkey(nil)
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.borderless)
+                .help("Remove shortcut")
+                .accessibilityLabel("Remove shortcut")
+            }
+        }
+        .padding(.horizontal, 6)
+        .frame(minWidth: 64, minHeight: 18)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(controller.isRecordingHotkey ? Color.accentColor : Color.primary.opacity(0.15))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture { controller.isRecordingHotkey.toggle() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Keyboard shortcut")
+        .accessibilityValue(title)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var title: String {
+        if controller.isRecordingHotkey { return "Press keys…" }
+        return controller.hotkey?.displayString ?? "Record"
+    }
+
+    private func startRecording() {
+        controller.takeKeyboard?()
+        stopRecording()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            switch event.keyCode {
+            case KeyCombo.KeyCode.escape where flags.isEmpty:
+                controller.isRecordingHotkey = false
+            case KeyCombo.KeyCode.delete where flags.isEmpty, KeyCombo.KeyCode.forwardDelete where flags.isEmpty:
+                controller.setHotkey(nil)
+            default:
+                // A plain letter would fire while typing anywhere: wait for a real shortcut.
+                guard let combo = KeyCombo(event: event) else {
+                    NSSound.beep()
+                    return nil
+                }
+                controller.setHotkey(combo)
+            }
+            return nil
+        }
+    }
+
+    private func stopRecording() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
     }
 }
 

@@ -7,9 +7,10 @@ public protocol ClickSource: AnyObject {
     func stopWatching(_ token: AnyObject)
 }
 
-/// `NSPopover.transient` alone is not enough: CapyBar is an agent app that does not
-/// become active when the panel opens (activating would take focus from the app in
-/// front), so clicks in other apps never reach the popover and it stays open.
+/// `NSPopover.transient` alone is not enough: it closes the panel only while CapyBar is
+/// the active app. Opening the panel activates CapyBar, but that isn't guaranteed to
+/// hold (macOS may decline the activation, and clicking another menu bar item doesn't
+/// change the active app), so clicks outside are watched directly as well.
 @MainActor
 public final class OutsideClickWatcher {
 

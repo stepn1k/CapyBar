@@ -2,7 +2,10 @@ import AppKit
 import CapyBarCore
 import SwiftUI
 
-/// Settings open below the control bar, so the bar never moves out from under the pointer.
+/// Just the icons, with the gear beside them; nothing else takes room. A search field
+/// shows up above the icons only while searching. Settings open below, so the gear
+/// never moves out from under the pointer. Keys are handled by `StatusItemController`
+/// (an AppKit monitor) and `PanelNavigator`; this view only draws their state.
 struct PanelView: View {
     let controller: CubbyController
     /// Opens the entry's menu, or starts its app when it is not running.
@@ -10,8 +13,14 @@ struct PanelView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            content
             if isReady {
+                if isSearchFieldShown {
+                    SearchField(controller: controller)
+                }
+                HStack(alignment: .top, spacing: CubbyController.gearSpacing) {
+                    readyContent.frame(maxWidth: .infinity, alignment: .leading)
+                    GearButton(controller: controller)
+                }
                 if let message = controller.message ?? controller.installMessage {
                     Text(message)
                         .font(.caption)
@@ -23,13 +32,12 @@ struct PanelView: View {
                         .controlSize(.small)
                         .help("Move CapyBar into the Applications folder and open it again from there")
                 }
-                Divider()
-                ControlBar(controller: controller)
                 if controller.showsSettings {
                     Divider()
                     SettingsSection(controller: controller)
                 }
             } else {
+                notReadyContent
                 VersionLabel().frame(maxWidth: .infinity)
             }
         }
@@ -39,19 +47,27 @@ struct PanelView: View {
 
     private var isReady: Bool { controller.isRestrictionAvailable && controller.isTrusted }
 
-    @ViewBuilder private var content: some View {
+    private var isSearchFieldShown: Bool {
+        !controller.isPaused && !controller.panelEntries.isEmpty && controller.navigator.isSearchFieldOpen
+    }
+
+    @ViewBuilder private var notReadyContent: some View {
         if !controller.isRestrictionAvailable {
             Notice(
                 symbol: "exclamationmark.triangle",
                 title: "This version of macOS isn’t supported",
                 detail: "CapyBar works on macOS 27 only."
             )
-        } else if !controller.isTrusted {
+        } else {
             Notice(symbol: "menubar.rectangle", title: "Allow CapyBar to hide icons") {
                 Button("Allow…") { controller.askForAccessibility() }
                     .buttonStyle(.borderedProminent)
             }
-        } else if controller.isPaused {
+        }
+    }
+
+    @ViewBuilder private var readyContent: some View {
+        if controller.isPaused {
             // The way back sits right here; the way in is a secondary switch in settings.
             VStack(alignment: .leading, spacing: 6) {
                 Text("All icons are back in the menu bar until you hide them again.")
@@ -64,8 +80,53 @@ struct PanelView: View {
         } else if controller.panelEntries.isEmpty {
             EmptyCubby(controller: controller)
         } else {
+            IconGrid(controller: controller, open: open)
+        }
+    }
+}
+
+/// Settings, beside the icons. A small spinner sits under it while scanning.
+private struct GearButton: View {
+    let controller: CubbyController
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Button {
+                controller.showsSettings.toggle()
+            } label: {
+                Image(systemName: "gearshape")
+                    .symbolVariant(controller.showsSettings ? .fill : .none)
+                    .foregroundStyle(controller.showsSettings ? Color.accentColor : .secondary)
+                    .frame(width: CubbyController.gearWidth, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .focusable(false)
+            .help(controller.showsSettings ? "Close settings" : "Settings")
+            .accessibilityLabel("Settings")
+            .accessibilityValue(controller.showsSettings ? "Open" : "Closed")
+            if controller.isScanning || controller.isBusy {
+                ProgressView().controlSize(.mini)
+            }
+        }
+    }
+}
+
+/// The hidden icons. The keyboard selection is drawn while the keyboard is in use.
+private struct IconGrid: View {
+    let controller: CubbyController
+    let open: (CubbyController.PanelEntry) -> Void
+
+    var body: some View {
+        let entries = controller.visibleEntries
+        if entries.isEmpty {
+            Text("No matching icons")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 32)
+        } else {
             FlowLayout(spacing: 4) {
-                ForEach(controller.panelEntries) { entry in
+                ForEach(Array(entries.enumerated()), id: \.element.id) { position, entry in
                     Button {
                         open(entry)
                     } label: {
@@ -73,8 +134,12 @@ struct PanelView: View {
                             .grayscale(entry.isRunning ? 0 : 1)
                             .opacity(entry.isRunning ? 1 : 0.5)
                             .padding(4)
+                            .background(
+                                Color.accentColor.opacity(controller.navigator.selection == position ? 0.3 : 0),
+                                in: RoundedRectangle(cornerRadius: 6))
                     }
                     .buttonStyle(.borderless)
+                    .focusable(false)
                     .disabled(controller.isBusy)
                     .help(entry.isRunning ? entry.title : "\(entry.title). Click to open it.")
                     .accessibilityLabel(entry.title)
@@ -127,44 +192,44 @@ struct VersionLabel: View {
     }
 }
 
-private struct ControlBar: View {
+/// Shown only while searching. It only displays the query: typing reaches the panel
+/// through the key monitor, so nothing depends on which view has the focus, and every
+/// arrow key keeps moving through the icons.
+private struct SearchField: View {
     let controller: CubbyController
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text(summary)
-                .font(.callout)
+        HStack(spacing: 4) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-            if controller.isScanning || controller.isBusy {
-                ProgressView().controlSize(.mini)
+            Group {
+                if controller.navigator.query.isEmpty {
+                    Text("Search").foregroundStyle(.tertiary)
+                } else {
+                    Text(controller.navigator.query).foregroundStyle(.primary)
+                }
             }
-            Spacer(minLength: 4)
-            // Show All Icons is rare, so it lives in the icon's right-click menu.
+            .font(.callout)
+            .lineLimit(1)
+            .truncationMode(.head)
+            .frame(maxWidth: .infinity, alignment: .leading)
             Button {
-                controller.showsSettings.toggle()
+                controller.closeSearch()
             } label: {
-                Image(systemName: "gearshape")
-                    .symbolVariant(controller.showsSettings ? .fill : .none)
-                    .foregroundStyle(controller.showsSettings ? Color.accentColor : .secondary)
-                    .frame(width: 20, height: 20)
-                    .contentShape(Rectangle())
+                Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
             }
             .buttonStyle(.borderless)
-            .help(controller.showsSettings ? "Close settings" : "Settings")
-            .accessibilityLabel("Settings")
-            .accessibilityValue(controller.showsSettings ? "Open" : "Closed")
+            .focusable(false)
+            .help("Close search (Esc)")
+            .accessibilityLabel("Close search")
         }
-    }
-
-    /// Counts apps, not icons: an app with two icons in the cubby is one app.
-    private var summary: String {
-        guard !controller.isPaused else { return "All icons shown" }
-        switch controller.hiddenAppCount {
-        case 0: return "Nothing hidden"
-        case 1: return "1 app hidden"
-        case let count: return "\(count) apps hidden"
-        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Search")
+        .accessibilityValue(controller.navigator.query)
     }
 }
 

@@ -51,8 +51,6 @@ final class CubbyController {
     // Derived lists are rebuilt only when their inputs change, never per SwiftUI render.
     private(set) var appEntries: [AppEntry] = []
     private(set) var panelEntries: [PanelEntry] = []
-    /// Running apps whose icons are in the cubby, as of the last scan.
-    var hiddenAppCount: Int { Set(panelEntries.filter(\.isRunning).map(\.bundleID)).count }
     private(set) var hidden: Set<String>
     private(set) var appOrder: [String]
     private(set) var isScanning = false
@@ -69,6 +67,12 @@ final class CubbyController {
     let isFirstRun: Bool
     /// Called once Accessibility is granted while CapyBar runs.
     @ObservationIgnored var onTrustGranted: (() -> Void)?
+    /// Makes the panel take keystrokes (set by the status item, which owns the panel).
+    @ObservationIgnored var takeKeyboard: (() -> Void)?
+    /// Closes the panel (set by the status item).
+    @ObservationIgnored var closePanel: (() -> Void)?
+    /// Called when the shortcut changes, so the status item's tooltip can show it.
+    @ObservationIgnored var onHotkeyChange: (() -> Void)?
 
     var hideNewApps: Bool {
         didSet { prefs.hideNewApps = hideNewApps }
@@ -86,12 +90,85 @@ final class CubbyController {
     /// Reset when the panel closes.
     var showsSettings = false
 
+    /// The panel's keyboard state: search query, matches, selection, search field.
+    private(set) var navigator = PanelNavigator(columns: CubbyController.panelColumns)
+
+    /// The gear beside the icons and the gap before it.
+    static let gearWidth: CGFloat = 20
+    static let gearSpacing: CGFloat = 8
+    /// Icons a row: 24 pt icons with 4 pt padding and 4 pt gaps, in the panel's 276 pt
+    /// less the gear.
+    static let panelColumns = GridLayout.columns(
+        width: 276 - Double(gearWidth + gearSpacing), cell: 32, spacing: 4)
+
+    /// What the panel shows: the icons that match the search, best first.
+    var visibleEntries: [PanelEntry] {
+        navigator.results.compactMap { panelEntries.indices.contains($0) ? panelEntries[$0] : nil }
+    }
+
+    /// Keys only mean something while there are icons to move through; Escape always
+    /// closes.
+    private var acceptsPanelKeys: Bool { isTrusted && !isPaused && !panelEntries.isEmpty }
+
+    /// A key-down while the panel is open, already translated (`PanelKeyRoute`). Returns
+    /// what the panel must do; `.ignored` lets the event go on to the system.
+    func handlePanelKey(_ route: PanelKeyRoute) -> PanelNavigator.Effect {
+        guard acceptsPanelKeys else { return route == .key(.escape) ? .close : .ignored }
+        let effect: PanelNavigator.Effect
+        switch route {
+        case .passThrough:
+            return .ignored
+        case .openSearch:
+            navigator.openSearch()
+            effect = .handled
+        case .paste:
+            guard let text = NSPasteboard.general.string(forType: .string) else { return .handled }
+            navigator.paste(text)
+            effect = .handled
+        case .key(let key):
+            effect = navigator.handle(key)
+        }
+        return effect
+    }
+
+    /// The field's close button.
+    func closeSearch() { navigator.closeSearch() }
+
+    /// The panel opened: from the shortcut, the first icon is selected so Return works
+    /// at once.
+    func panelOpened(fromKeyboard: Bool) {
+        if fromKeyboard { navigator.beginKeyboardUse() }
+    }
+
+    /// The panel closed.
+    func resetPanelKeyboard() {
+        navigator.reset()
+    }
+
     /// Temporarily shows every icon. Not remembered across launches.
     var isPaused = false {
         didSet {
             guard isPaused != oldValue else { return }
             if isPaused { keeper.cancel() }
             apply()
+        }
+    }
+
+    /// The global shortcut that opens the panel, nil when none is set.
+    private(set) var hotkey: KeyCombo?
+    /// Why the last shortcut could not be used; shown under the shortcut setting.
+    private(set) var hotkeyProblem: String?
+    /// While the settings record a new shortcut the current one is off, so pressing it
+    /// again records it instead of closing the panel.
+    var isRecordingHotkey = false {
+        didSet {
+            guard isRecordingHotkey != oldValue else { return }
+            if isRecordingHotkey {
+                hotkeyProblem = nil
+                HotkeyCenter.shared.unregister()
+            } else {
+                HotkeyCenter.shared.register(hotkey)
+            }
         }
     }
 
@@ -149,6 +226,7 @@ final class CubbyController {
         appOrder = prefs.appOrder
         hideNewApps = prefs.hideNewApps
         showsNotRunningApps = prefs.showsNotRunningApps
+        hotkey = prefs.hotkey
         ownID = Bundle.main.bundleIdentifier ?? ""
         installProblem = Self.findInstallProblem(bundleID: ownID)
     }
@@ -234,6 +312,10 @@ final class CubbyController {
             DispatchQueue.main.async { self?.scheduleRunningAppsCheck() }
         }
         watchSleepAndSessions()
+        // A shortcut another app took meanwhile is kept, so it works again once freed.
+        if let hotkey, !HotkeyCenter.shared.register(hotkey) {
+            hotkeyProblem = Self.shortcutTaken(hotkey)
+        }
         // Apps launched at login before CapyBar and never seen: check them like new ones.
         considerNewApps(running.subtracting(known))
         apply()
@@ -278,7 +360,27 @@ final class CubbyController {
         workspaceObservers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)
         workspaceObservers = []
         keeper.cancel()
+        HotkeyCenter.shared.unregister()
         restriction.clear()
+    }
+
+    // MARK: - Shortcut
+
+    /// Saves and registers a new shortcut; nil removes it. A combination macOS refuses
+    /// is not saved, and the previous one stays.
+    func setHotkey(_ combo: KeyCombo?) {
+        isRecordingHotkey = false
+        guard combo != hotkey else { return }
+        if let combo, !HotkeyCenter.shared.register(combo) {
+            hotkeyProblem = Self.shortcutTaken(combo)
+            HotkeyCenter.shared.register(hotkey)
+            return
+        }
+        if combo == nil { HotkeyCenter.shared.unregister() }
+        hotkeyProblem = nil
+        hotkey = combo
+        prefs.hotkey = combo
+        onHotkeyChange?()
     }
 
     /// Launches come in bursts (a login, System Settings starting its helpers), so
@@ -620,6 +722,7 @@ final class CubbyController {
             }
         }
         panelEntries = ranked.sorted { $0.key < $1.key }.map(\.entry)
+        navigator.update(titles: panelEntries.map(\.title))
     }
 
     /// Starts a hidden app that is not running; its icon then waits in the cubby.
@@ -764,6 +867,10 @@ final class CubbyController {
 
     private static func appName(_ bundleID: String) -> String {
         NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.localizedName ?? bundleID
+    }
+
+    private static func shortcutTaken(_ combo: KeyCombo) -> String {
+        "\(combo.displayString) is taken by macOS or another app. Choose another shortcut."
     }
 
     private static func describe(_ failure: Restriction.Failure) -> String {

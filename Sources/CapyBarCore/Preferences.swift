@@ -14,6 +14,7 @@ public final class Preferences {
         package static let checksForUpdates = "checksForUpdates"
         package static let lastUpdateCheck = "lastUpdateCheck"
         package static let iconless = "iconlessBundleIDs"
+        package static let hotkey = "hotkey"
     }
 
     /// Upper bounds so a corrupted or hand-edited plist cannot blow up memory or the
@@ -68,6 +69,20 @@ public final class Preferences {
     public var lastUpdateCheck: Date? {
         get { defaults.object(forKey: Key.lastUpdateCheck) as? Date }
         set { defaults.set(newValue, forKey: Key.lastUpdateCheck) }
+    }
+
+    /// The global shortcut that opens the panel. None until the user records one: a
+    /// global shortcut wins over every app's own, so a default would silently take a
+    /// combination (like ⇧⌘C, Inspect Element in browsers) away from apps people use.
+    public var hotkey: KeyCombo? {
+        get { (defaults.object(forKey: Key.hotkey) as? [String: Any]).flatMap(KeyCombo.init(plist:)) }
+        set {
+            if let newValue {
+                defaults.set(newValue.plist, forKey: Key.hotkey)
+            } else {
+                defaults.removeObject(forKey: Key.hotkey)
+            }
+        }
     }
 
     /// "Open at Login" is turned on by CapyBar itself only once; after that the switch
