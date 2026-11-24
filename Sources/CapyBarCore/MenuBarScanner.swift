@@ -68,6 +68,17 @@ public enum MenuBarScanner {
         }
     }
 
+    /// Polls one app until it publishes status items or `timeout` passes. An app whose
+    /// item was created while hidden publishes it only once MenuBarAgent lays it out.
+    public static func waitForItems(pid: pid_t, bundleID: String, timeout: TimeInterval) -> [MenuBarItem] {
+        let deadline = Date().addingTimeInterval(timeout)
+        while true {
+            let found = items(pid: pid, bundleID: bundleID)
+            if !found.isEmpty || Date() >= deadline { return found }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+    }
+
     static func children(pid: pid_t) -> [AXUIElement] {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, messagingTimeout)

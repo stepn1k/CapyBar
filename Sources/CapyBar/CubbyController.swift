@@ -24,10 +24,17 @@ final class CubbyController {
         /// Nil for a hidden app that is not running: it has no menu bar icon to open,
         /// so clicking it launches the app instead.
         let item: MenuBarItem?
+        /// Set for a hidden app that runs but whose icons the scan did not find (see
+        /// `Allowlist.needsUnscannedEntry`). Clicking it reveals the app first and looks
+        /// for its icon then.
+        var pid: pid_t? = nil
         let title: String
         let icon: NSImage?
-        var isRunning: Bool { item != nil }
-        var id: String { item?.id ?? "notRunning:\(bundleID)" }
+        var isRunning: Bool { item != nil || pid != nil }
+        var id: String {
+            if let item { return item.id }
+            return pid != nil ? "unscanned:\(bundleID)" : "notRunning:\(bundleID)"
+        }
     }
 
     /// Delays of the one-shot checks for a status item after a never-seen app launches.
@@ -35,6 +42,8 @@ final class CubbyController {
     /// Candidates are dropped right after the last check.
     static let candidateLifetime: Duration = .seconds(11)
     static let launchDebounce: Duration = .milliseconds(500)
+    /// How long a revealed app that was never laid out may take to publish its icons.
+    static let revealTimeout: TimeInterval = 1.5
 
     // Derived lists are rebuilt only when their inputs change, never per SwiftUI render.
     private(set) var appEntries: [AppEntry] = []
@@ -95,6 +104,11 @@ final class CubbyController {
     @ObservationIgnored private var autoHideCandidates: [String: ContinuousClock.Instant] = [:]
     /// In-memory copy of `prefs.known`; it is read on every apply.
     @ObservationIgnored private var known: Set<String> = []
+    /// In-memory copy of `prefs.iconless`.
+    @ObservationIgnored private var iconless: Set<String>
+    /// Waits for a revealed app's icons; separate from `scanQueue` so a scan opened
+    /// meanwhile does not queue behind it.
+    @ObservationIgnored private let revealQueue = DispatchQueue(label: "app.capybar.reveal", qos: .userInitiated)
     @ObservationIgnored private var runningCheckScheduled = false
     @ObservationIgnored private var askedForAccessibility = false
     @ObservationIgnored private var trustObserver: NSObjectProtocol?
@@ -110,6 +124,7 @@ final class CubbyController {
         self.prefs = prefs
         isFirstRun = prefs.known.isEmpty
         hidden = prefs.hidden
+        iconless = prefs.iconless
         appOrder = prefs.appOrder
         hideNewApps = prefs.hideNewApps
         showsNotRunningApps = prefs.showsNotRunningApps
@@ -306,6 +321,8 @@ final class CubbyController {
             hidden.remove(bundleID)
         }
         prefs.hidden = hidden
+        // Hiding it again gives an app marked iconless another chance in the cubby.
+        if iconless.remove(bundleID) != nil { prefs.iconless = iconless }
         rebuildEntries()
         apply()
     }
@@ -402,6 +419,11 @@ final class CubbyController {
                 guard let self else { return }
                 items = found
                 isScanning = false
+                let owners = Set(found.map(\.bundleID))
+                if !iconless.isDisjoint(with: owners) {
+                    iconless.subtract(owners)
+                    prefs.iconless = iconless
+                }
                 rebuildEntries()
             }
         }
@@ -451,6 +473,23 @@ final class CubbyController {
                 let entry = PanelEntry(bundleID: item.bundleID, item: item, title: title, icon: app?.icon)
                 return ((rank(item.bundleID), offset), entry)
             }
+        var listed = Set(items.map(\.bundleID))
+        let scanned = listed
+        let unscanned = Self.statusCapableApps()
+            .filter { app in
+                app.bundleIdentifier.map {
+                    Allowlist.needsUnscannedEntry(
+                        bundleID: $0, scanned: scanned, hidden: hidden, iconless: iconless, ownBundleID: ownID)
+                } ?? false
+            }
+            .sorted { $0.processIdentifier < $1.processIdentifier }
+        for (offset, app) in unscanned.enumerated() {
+            guard let bundleID = app.bundleIdentifier, listed.insert(bundleID).inserted else { continue }
+            let entry = PanelEntry(
+                bundleID: bundleID, item: nil, pid: app.processIdentifier,
+                title: app.localizedName ?? bundleID, icon: app.icon)
+            ranked.append(((rank(bundleID), items.count + offset), entry))
+        }
         if showsNotRunningApps {
             for (offset, app) in appEntries.enumerated() where !app.isRunning {
                 let entry = PanelEntry(
@@ -477,6 +516,77 @@ final class CubbyController {
     }
 
     // MARK: - Opening a hidden item
+
+    /// What a click on a panel entry does.
+    func open(_ entry: PanelEntry) {
+        if let item = entry.item {
+            open(item)
+        } else if let pid = entry.pid {
+            openUnscanned(bundleID: entry.bundleID, pid: pid)
+        } else {
+            launch(entry.bundleID)
+        }
+    }
+
+    /// A hidden app whose icon was never laid out: reveal it, wait until its status
+    /// items show up in Accessibility, then open the first one like any other item.
+    private func openUnscanned(bundleID: String, pid: pid_t) {
+        guard !isBusy else { return }
+        guard isTrusted else {
+            message = "CapyBar needs Accessibility permission."
+            return
+        }
+        // The entry may be older than the last quit; never read another process's items
+        // under this app's name.
+        guard Self.isRunning(bundleID, pid: pid) else {
+            rebuildEntries()
+            return
+        }
+        isBusy = true
+        message = nil
+        revealed.insert(bundleID)
+        let timeout = Self.revealTimeout
+        apply { [weak self] in
+            self?.revealQueue.async { [weak self] in
+                let found = MenuBarScanner.waitForItems(pid: pid, bundleID: bundleID, timeout: timeout)
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    guard let first = found.first, Self.isRunning(bundleID, pid: pid) else {
+                        revealed.remove(bundleID)
+                        apply()
+                        isBusy = false
+                        if let app = NSRunningApplication(processIdentifier: pid), app.bundleIdentifier == bundleID {
+                            // A Dock app (a browser, an editor) often has no status item at
+                            // all, so it leaves the cubby. A menu-bar-only app exists for its
+                            // icon, so it stays: this was more likely a slow app.
+                            let isDockApp = app.activationPolicy == .regular
+                            if isDockApp {
+                                iconless.insert(bundleID)
+                                prefs.iconless = iconless
+                            }
+                            // Keep a failure `apply` reported: it is the real cause.
+                            if message == nil {
+                                let name = Self.appName(bundleID)
+                                message =
+                                    isDockApp
+                                    ? "\(name) has no menu bar icon."
+                                    : "Couldn’t find the menu bar icon of \(name)."
+                            }
+                        }
+                        rebuildEntries()
+                        return
+                    }
+                    // Now that the icons exist, the cubby lists them one by one.
+                    items.removeAll { $0.pid == pid }
+                    items.append(contentsOf: found)
+                    rebuildEntries()
+                    presser.press(first, preferred: prefs.preferredMethod(for: bundleID)) { [weak self] outcome in
+                        self?.finishOpen(first, outcome)
+                    }
+                }
+            }
+        }
+    }
 
     /// Reveals the item's app for a moment, opens its menu, hides it again once closed.
     func open(_ item: MenuBarItem) {
@@ -524,6 +634,10 @@ final class CubbyController {
         let name = (FileManager.default.displayName(atPath: url.path) as NSString).deletingPathExtension
         return AppEntry(
             bundleID: bundleID, name: name, icon: NSWorkspace.shared.icon(forFile: url.path), isRunning: false)
+    }
+
+    private static func isRunning(_ bundleID: String, pid: pid_t) -> Bool {
+        NSRunningApplication(processIdentifier: pid)?.bundleIdentifier == bundleID
     }
 
     private static func appName(_ bundleID: String) -> String {

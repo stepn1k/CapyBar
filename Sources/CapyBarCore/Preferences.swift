@@ -11,6 +11,7 @@ public final class Preferences {
         package static let appOrder = "appOrder"
         package static let loginItemOffered = "loginItemOffered"
         package static let showsNotRunningApps = "showsNotRunningApps"
+        package static let iconless = "iconlessBundleIDs"
     }
 
     /// Upper bounds so a corrupted or hand-edited plist cannot blow up memory or the
@@ -34,6 +35,13 @@ public final class Preferences {
     public var known: Set<String> {
         get { readSet(Key.known) }
         set { writeSet(newValue, Key.known) }
+    }
+
+    /// Hidden apps that showed no menu bar icon even while revealed. They are left out
+    /// of the cubby until a scan finds an icon for them.
+    public var iconless: Set<String> {
+        get { readSet(Key.iconless) }
+        set { writeSet(newValue, Key.iconless) }
     }
 
     public var hideNewApps: Bool {

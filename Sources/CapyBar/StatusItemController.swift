@@ -32,13 +32,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         let panel = NSHostingController(
             rootView: PanelView(
                 controller: controller,
-                open: { [weak self] item in
+                open: { [weak self] entry in
                     self?.popover.performClose(nil)
-                    self?.controller.open(item)
-                },
-                launch: { [weak self] bundleID in
-                    self?.popover.performClose(nil)
-                    self?.controller.launch(bundleID)
+                    self?.controller.open(entry)
                 }
             ))
         // Without this NSPopover lays itself out for its default 320×320 content and keeps

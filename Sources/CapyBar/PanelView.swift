@@ -5,9 +5,8 @@ import SwiftUI
 /// Settings open below the control bar, so the bar never moves out from under the pointer.
 struct PanelView: View {
     let controller: CubbyController
-    let open: (MenuBarItem) -> Void
-    /// Starts a hidden app that is not running.
-    let launch: (String) -> Void
+    /// Opens the entry's menu, or starts its app when it is not running.
+    let open: (CubbyController.PanelEntry) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -63,11 +62,7 @@ struct PanelView: View {
             FlowLayout(spacing: 4) {
                 ForEach(controller.panelEntries) { entry in
                     Button {
-                        if let item = entry.item {
-                            open(item)
-                        } else {
-                            launch(entry.bundleID)
-                        }
+                        open(entry)
                     } label: {
                         ItemIcon(icon: entry.icon)
                             .grayscale(entry.isRunning ? 0 : 1)

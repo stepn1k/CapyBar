@@ -56,6 +56,22 @@ func allowlistTests() {
         !Allowlist.shouldAutoHide(bundleID: own, known: [], hideNewApps: true, ownBundleID: own),
         "own app is never auto-hidden")
 
+    section("Allowlist.needsUnscannedEntry")
+    func unscanned(
+        _ id: String, scanned: Set<String> = [], hidden: Set<String> = ["a"], iconless: Set<String> = []
+    )
+        -> Bool
+    {
+        Allowlist.needsUnscannedEntry(
+            bundleID: id, scanned: scanned, hidden: hidden, iconless: iconless, ownBundleID: own)
+    }
+    check(unscanned("a"), "hidden running app the scan missed gets an entry")
+    check(!unscanned("a", scanned: ["a"]), "an app the scan found is listed by its icons instead")
+    check(!unscanned("b"), "an app that is not hidden gets none")
+    check(!unscanned("a", iconless: ["a"]), "an app known to have no icon gets none")
+    check(!unscanned(own, hidden: [own]), "own app never gets one")
+    check(!unscanned("com.apple.Siri", hidden: ["com.apple.Siri"]), "Apple agents never get one")
+
     section("Allowlist.isAppleProcess")
     check(Allowlist.isAppleProcess("com.apple.MenuBarAgent"), "MenuBarAgent is Apple's")
     check(Allowlist.isAppleProcess("com.apple.TextInputMenuAgent"), "the input menu agent is Apple's")
@@ -95,6 +111,9 @@ func preferencesTests() {
     check(!prefs.showsNotRunningApps, "not-running apps are left out of the cubby by default")
     prefs.showsNotRunningApps = true
     check(Preferences(defaults: defaults).showsNotRunningApps, "showing not-running apps is remembered")
+    check(prefs.iconless.isEmpty, "no app is marked iconless at first")
+    prefs.iconless = ["chrome"]
+    check(Preferences(defaults: defaults).iconless == ["chrome"], "iconless apps are remembered")
     prefs.setPreferredMethod(.click, for: "")
     check(
         (defaults.dictionary(forKey: Preferences.Key.preferredMethods)?[""]) == nil, "invalid bundle ID is not stored")

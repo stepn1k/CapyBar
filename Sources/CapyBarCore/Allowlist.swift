@@ -52,6 +52,22 @@ public enum Allowlist {
         return !isAppleProcess(bundleID)
     }
 
+    /// A hidden app that runs but whose icons the scan did not find still gets a place in
+    /// the cubby: after a restart, apps that open at login after CapyBar create their
+    /// status items while already hidden, and those publish no Accessibility element
+    /// until they are drawn once. Apps that turned out to have no icon at all
+    /// (`iconless`) are left out.
+    public static func needsUnscannedEntry(
+        bundleID: String,
+        scanned: Set<String>,
+        hidden: Set<String>,
+        iconless: Set<String>,
+        ownBundleID own: String
+    ) -> Bool {
+        hidden.contains(bundleID) && !scanned.contains(bundleID) && !iconless.contains(bundleID)
+            && bundleID != own && !isAppleProcess(bundleID)
+    }
+
     /// Apple's own processes (MenuBarAgent, the input menu and the like). Their menu bar
     /// items are managed by macOS itself, so CapyBar neither lists nor hides them.
     public static func isAppleProcess(_ bundleID: String) -> Bool {
