@@ -68,6 +68,20 @@ jobs:
           CAPYBAR_BUILD: ${{ steps.version.outputs.build }}
         run: scripts/bundle.sh --zip
 
+      # The "What's new" list: subjects of the commits since the last release that
+      # changed the app (same paths as the trigger above), oldest first.
+      - name: Changes
+        if: steps.version.outputs.skip != 'true'
+        env:
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          RANGE="${PREVIOUS:+$PREVIOUS..}HEAD"
+          git log --no-merges --reverse --format='- %s' "$RANGE" -- \
+            Sources/CapyBar Sources/CapyBarCore Sources/MenuBarPrivate Resources Package.swift \
+            > build/changes.md
+          [[ -s build/changes.md ]] || echo "- Maintenance release." > build/changes.md
+          cat build/changes.md
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.version.outputs.skip != 'true'
         with:
@@ -75,6 +89,7 @@ jobs:
           path: |
             build/CapyBar.zip
             build/version.json
+            build/changes.md
           if-no-files-found: error
           retention-days: 7
 
@@ -106,18 +121,55 @@ jobs:
 
       - name: Publish
         if: needs.build.outputs.skip != 'true'
+        # GitHub always adds the "Source code" archives to a release; the notes lead
+        # with a direct link to the app so nobody has to find it among them.
         run: |
           SHA256="$(sha256sum CapyBar.zip | cut -d' ' -f1)"
-          NOTES="Ad-hoc signed, not notarized: after moving CapyBar.app to Applications, allow it once in System Settings → Privacy & Security → Open Anyway.
+          DOWNLOAD="https://github.com/$GH_REPO/releases/download/v$VERSION/CapyBar.zip"
+          {
+            cat <<EOF
+          ## [⬇️ Download CapyBar $VERSION]($DOWNLOAD)
+
+          For macOS 27 or later.
+
+          ### What's new
+
+          EOF
+            cat changes.md
+            cat <<EOF
+
+          ### Install
+
+          1. Unzip **CapyBar.zip** and open **CapyBar.app**. CapyBar isn't notarized, so macOS blocks it: click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
+          2. CapyBar moves itself into **Applications** (it only works from there) and opens again.
+          3. Grant **Accessibility** when asked. macOS asks again after every update.
+
+          Updating? Open the new version the same way: it replaces the old one in Applications.
+
+          <details>
+          <summary>Verify the download</summary>
 
           SHA-256 of CapyBar.zip: \`$SHA256\`
-          Verify: \`gh attestation verify CapyBar.zip -R $GH_REPO\`"
+
+          Built by GitHub Actions from this release's commit, with a signed build provenance attestation:
+
+          \`\`\`
+          gh attestation verify CapyBar.zip -R $GH_REPO
+          \`\`\`
+
+          \`version.json\` is for the app's update check; you don't need it.
+          </details>
+          EOF
+            if [[ -n "$PREVIOUS" ]]; then
+              echo
+              echo "**Full changelog:** https://github.com/$GH_REPO/compare/$PREVIOUS...v$VERSION"
+            fi
+          } > notes.md
           gh release create "v$VERSION" CapyBar.zip version.json \
             --target "$GITHUB_SHA" \
             --title "CapyBar $VERSION" \
             --latest \
-            --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"} \
-            --notes "$NOTES"
+            --notes-file notes.md
 
       # One-time cleanup of the old rolling release; safe to remove afterwards.
       - name: Remove the legacy "latest" release

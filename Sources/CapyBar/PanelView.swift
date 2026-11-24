@@ -12,11 +12,16 @@ struct PanelView: View {
         VStack(alignment: .leading, spacing: 10) {
             content
             if isReady {
-                if let message = controller.message {
+                if let message = controller.message ?? controller.installMessage {
                     Text(message)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+                if controller.canMoveToApplications {
+                    Button("Move to Applications") { controller.moveToApplications() }
+                        .controlSize(.small)
+                        .help("Move CapyBar into the Applications folder and open it again from there")
                 }
                 Divider()
                 ControlBar(controller: controller)

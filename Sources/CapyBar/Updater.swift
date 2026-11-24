@@ -81,8 +81,8 @@ final class Updater {
         case .success(let latest) where available == latest:
             alert.messageText = "CapyBar \(latest.version) is available"
             alert.informativeText = """
-                You have \(installed). Download the new version and replace CapyBar in \
-                Applications. macOS asks for Accessibility again after the update.
+                You have \(installed). Download the new version and open it: it replaces \
+                this one in Applications. macOS asks for Accessibility again after the update.
                 """
             alert.addButton(withTitle: "Download…")
             alert.addButton(withTitle: "Later")

@@ -57,6 +57,8 @@ final class CubbyController {
     private(set) var appOrder: [String]
     private(set) var isScanning = false
     private(set) var isBusy = false
+    /// A move to /Applications started from the panel is under way.
+    private(set) var isMoving = false
     private(set) var message: String?
     private(set) var isTrusted = MenuBarScanner.isTrusted
     /// On while registered, also when macOS still waits for the user's approval.
@@ -90,9 +92,11 @@ final class CubbyController {
     }
 
     let ownID: String
+    /// Why this copy cannot hide, if it cannot (see `InstallLocation`).
+    let installProblem: InstallLocation.Problem?
     /// Hiding is only safe when this process is the copy MenuBarAgent matches by bundle
     /// ID: otherwise our own icon would vanish with the others and leave no way back.
-    let canHide: Bool
+    var canHide: Bool { installProblem == nil }
 
     @ObservationIgnored private let prefs: Preferences
     @ObservationIgnored private let restriction = Restriction()
@@ -134,7 +138,49 @@ final class CubbyController {
         hideNewApps = prefs.hideNewApps
         showsNotRunningApps = prefs.showsNotRunningApps
         ownID = Bundle.main.bundleIdentifier ?? ""
-        canHide = Self.isResolvedCopy(bundleID: ownID, at: Bundle.main.bundleURL)
+        installProblem = Self.findInstallProblem(bundleID: ownID)
+    }
+
+    private static func findInstallProblem(bundleID: String) -> InstallLocation.Problem? {
+        let own = Bundle.main.bundleURL
+        func resolved() -> String? {
+            guard !bundleID.isEmpty else { return nil }
+            return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID).map(canonicalPath)
+        }
+        var problem = InstallLocation.problem(bundlePath: canonicalPath(own), resolvedPath: resolved())
+        // Right after a move, LaunchServices may still point at the download's
+        // translocated view or at the trashed copy: register this copy and look again.
+        if case .otherCopy(let path) = problem, path.map(InstallLocation.isLeftover) ?? true {
+            LSRegisterURL(own as CFURL, true)
+            problem = InstallLocation.problem(bundlePath: canonicalPath(own), resolvedPath: resolved())
+        }
+        return problem
+    }
+
+    /// Why hiding is off because of where CapyBar runs. Kept apart from `message`, which
+    /// other events replace, so it never goes away while it holds.
+    var installMessage: String? {
+        switch installProblem {
+        case .outsideApplications:
+            return "To hide icons, CapyBar must run from the Applications folder."
+        case .otherCopy(let path?):
+            let folder = FileManager.default.displayName(atPath: (path as NSString).deletingLastPathComponent)
+            return "Another copy of CapyBar, in \(folder), stops this one from hiding icons. "
+                + "Move it to the Trash and open CapyBar again."
+        case .otherCopy(nil):
+            return "macOS doesn’t know this copy of CapyBar yet. Quit it and open it again."
+        case nil:
+            return nil
+        }
+    }
+
+    /// The panel offers the move a downloaded copy makes by itself at launch.
+    var canMoveToApplications: Bool {
+        installProblem == .outsideApplications && AppMover.canMove(bundleID: ownID) && !isMoving
+    }
+
+    private static func canonicalPath(_ url: URL) -> String {
+        url.standardizedFileURL.resolvingSymlinksInPath().path
     }
 
     /// True when LaunchServices resolves `bundleID` to exactly the bundle at `url`, which
@@ -152,9 +198,6 @@ final class CubbyController {
     func start() {
         // Safe mode: hold Option while launching to start with everything visible.
         if NSEvent.modifierFlags.contains(.option) { isPaused = true }
-        if !canHide {
-            message = "To hide icons, move CapyBar to the Applications folder."
-        }
         // A copy outside /Applications is a build being tried out: don't make it a
         // login item.
         if canHide, !prefs.loginItemOffered {
@@ -181,6 +224,24 @@ final class CubbyController {
         // Apps launched at login before CapyBar and never seen: check them like new ones.
         considerNewApps(running.subtracting(known))
         apply()
+    }
+
+    /// The panel's button for a copy outside /Applications that did not move itself at
+    /// launch. On success CapyBar quits and the moved copy starts.
+    func moveToApplications() {
+        guard canMoveToApplications else { return }
+        isMoving = true
+        if let failure = AppMover.moveAndRelaunch(bundleID: ownID) {
+            isMoving = false
+            message = failure.message
+        } else {
+            NSApp.terminate(nil)
+        }
+    }
+
+    /// Shown when the automatic move at launch did not work.
+    func reportMoveFailure(_ text: String) {
+        message = text
     }
 
     func stop() {

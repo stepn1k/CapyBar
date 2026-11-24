@@ -6,7 +6,7 @@ macOS 27 has a private "assessment mode" (`MBAssessmentModeAssertion` in `MenuBa
 
 The assertion lives exactly as long as the CapyBar process, which is why quitting or crashing restores everything. If MenuBarAgent restarts, CapyBar sends it again.
 
-MenuBarAgent matches allowlisted apps by bundle ID through LaunchServices, so CapyBar's own icon stays visible only when the running copy is the one LaunchServices resolves. That is why CapyBar refuses to hide anything unless it runs from `/Applications`.
+MenuBarAgent matches allowlisted apps by bundle ID through LaunchServices, so CapyBar's own icon stays visible only when the running copy is the one LaunchServices resolves. That is why CapyBar refuses to hide anything unless it runs from `/Applications`. A copy opened from Downloads, which Gatekeeper runs from a temporary read-only folder (App Translocation), moves itself into `/Applications` as CapyBar.app, replacing an older build there (never a newer one), and starts again from there.
 
 ## Opening a hidden item
 

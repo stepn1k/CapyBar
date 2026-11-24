@@ -4,6 +4,7 @@ import Foundation
 // (Command Line Tools ship without XCTest, so this is a plain executable.)
 
 allowlistTests()
+installLocationTests()
 preferencesTests()
 presserTests()
 outsideClickTests()

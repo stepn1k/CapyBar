@@ -30,8 +30,8 @@ Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones 
 
 **[Download the latest CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip)** ([release notes](https://github.com/stepn1k/CapyBar/releases))
 
-1. Unzip and drag **CapyBar.app** into **Applications** (it only works from there).
-2. Open it. CapyBar isn't notarized, so macOS blocks it: click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
+1. Unzip and open **CapyBar.app**. CapyBar isn't notarized, so macOS blocks it: click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
+2. CapyBar moves itself into **Applications** (it only works from there) and opens again. Updates install the same way.
 3. Grant **Accessibility** when asked and pick the apps to hide. macOS asks again after every update.
 
 Or build it yourself with the Command Line Tools:

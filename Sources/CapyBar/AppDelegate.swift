@@ -8,8 +8,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Opened straight from Downloads: CapyBar can hide nothing from there, so it
+        // moves itself into Applications and starts again from there, no questions asked.
+        var moveFailure: String?
+        if AppMover.isDownloadedCopy(bundleID: controller.ownID) {
+            guard let failure = AppMover.moveAndRelaunch(bundleID: controller.ownID) else {
+                NSApp.terminate(nil)
+                return
+            }
+            moveFailure = failure.message
+        }
         statusItem = StatusItemController(controller: controller)
         controller.start()
+        if let moveFailure { controller.reportMoveFailure(moveFailure) }
         // Off unless the user turned on automatic checks. Not right at launch, so a
         // login-time start does not race the network coming up.
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { Updater.shared.checkIfDue() }
