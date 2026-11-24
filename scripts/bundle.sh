@@ -4,7 +4,7 @@
 #   scripts/bundle.sh --install  build, quit a running copy, install into /Applications
 #   scripts/bundle.sh --zip      build, then pack build/CapyBar.zip to hand to someone else
 #
-# The flags can be combined.
+# The flags can be combined. CAPYBAR_VERSION / CAPYBAR_BUILD override Info.plist.
 #
 # /Applications matters: MenuBarAgent matches allowlisted apps by bundle ID only for the
 # copy LaunchServices resolves for that ID. A copy run from elsewhere cannot keep its
@@ -33,6 +33,10 @@ done
 cd "$ROOT"
 BUNDLE_ID="$(bundle_id Resources/Info.plist)"
 [[ -n "$BUNDLE_ID" ]] || { echo "Resources/Info.plist has no CFBundleIdentifier" >&2; exit 1; }
+VERSION="${CAPYBAR_VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)}"
+BUILD="${CAPYBAR_BUILD:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' Resources/Info.plist)}"
+[[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]] || { echo "Unexpected version: $VERSION" >&2; exit 1; }
+[[ "$BUILD" =~ ^[0-9]+$ ]] || { echo "The build must be a whole number: $BUILD" >&2; exit 1; }
 
 swift build -c release --product CapyBar
 BIN="$(swift build -c release --show-bin-path)/CapyBar"
@@ -41,12 +45,16 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/CapyBar"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy \
+  -c "Set :CFBundleShortVersionString $VERSION" \
+  -c "Set :CFBundleVersion $BUILD" \
+  "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 codesign --force --sign - --options runtime --timestamp=none "$APP"
 codesign --verify --strict "$APP"
 # Keep LaunchServices pointing at the /Applications copy only (see the note above).
 "$LSREGISTER" -u "$APP" >/dev/null 2>&1 || true
-echo "Built $APP"
+echo "Built $APP ($VERSION, build $BUILD)"
 
 if (( ZIP )); then
   # ditto, unlike zip, keeps the code signature and extended attributes intact.
@@ -55,10 +63,6 @@ if (( ZIP )); then
   ditto -c -k --keepParent "$APP" "$ZIPFILE"
   echo "Packed $ZIPFILE"
   # Published next to the zip; the app's update check reads it (UpdateCheck.swift).
-  VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
-  BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' Resources/Info.plist)"
-  [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]] || { echo "Unexpected version: $VERSION" >&2; exit 1; }
-  [[ "$BUILD" =~ ^[0-9]+$ ]] || { echo "CFBundleVersion must be a whole number: $BUILD" >&2; exit 1; }
   printf '{"version":"%s","build":%s}\n' "$VERSION" "$BUILD" > "$ROOT/build/version.json"
   echo "Wrote $ROOT/build/version.json ($VERSION, build $BUILD)"
 fi

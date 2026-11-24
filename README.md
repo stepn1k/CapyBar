@@ -11,6 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-27%2B-lightgrey?logo=apple" alt="macOS 27+">
   <img src="https://img.shields.io/badge/status-beta-blue" alt="Status: beta">
+  <a href="https://github.com/stepn1k/CapyBar/releases/latest"><img src="https://img.shields.io/github/v/release/stepn1k/CapyBar?label=release" alt="Latest release"></a>
 </p>
 
 <p align="center">
@@ -27,9 +28,7 @@ Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones 
 
 ## Install
 
-<!-- download:start -->
-**[Download CapyBar 0.2.1](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip)** · built 2026-11-24
-<!-- download:end -->
+**[Download the latest CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip)** ([release notes](https://github.com/stepn1k/CapyBar/releases))
 
 1. Unzip and drag **CapyBar.app** into **Applications** (it only works from there).
 2. Open it. CapyBar isn't notarized, so macOS blocks it: click **Done**, then **System Settings → Privacy & Security → Open Anyway**.

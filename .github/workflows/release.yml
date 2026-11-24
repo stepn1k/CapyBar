@@ -1,0 +1,127 @@
+# Every push to main that changes the app: lint, test and build with a read-only token,
+# then publish release vX.Y.Z (version from scripts/next-version.sh) with a signed
+# build provenance attestation. The release job runs no code from the repository.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Sources/CapyBar/**"
+      - "Sources/CapyBarCore/**"
+      - "Sources/MenuBarPrivate/**"
+      - "Resources/**"
+      - "Package.swift"
+      - "scripts/bundle.sh"
+  workflow_dispatch:
+
+permissions: {}
+
+# One release at a time, so versions don't collide.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: xcode-27
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      previous: ${{ steps.version.outputs.previous }}
+      skip: ${{ steps.version.outputs.skip }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # next-version.sh needs tags and history
+          persist-credentials: false
+
+      - name: Lint
+        run: swift format lint --strict --recursive Sources Package.swift scripts/make-icon.swift
+
+      - name: Test
+        run: swift run CapyBarTests
+
+      - name: Version
+        id: version
+        run: |
+          if git tag --points-at HEAD | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::notice::$GITHUB_SHA is already released"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          read -r VERSION BUILD PREVIOUS < <(scripts/next-version.sh)
+          echo "Releasing $VERSION (build $BUILD) after ${PREVIOUS:-nothing}"
+          {
+            echo "version=$VERSION"
+            echo "build=$BUILD"
+            echo "previous=$PREVIOUS"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build CapyBar.zip
+        if: steps.version.outputs.skip != 'true'
+        env:
+          CAPYBAR_VERSION: ${{ steps.version.outputs.version }}
+          CAPYBAR_BUILD: ${{ steps.version.outputs.build }}
+        run: scripts/bundle.sh --zip
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.version.outputs.skip != 'true'
+        with:
+          name: release
+          path: |
+            build/CapyBar.zip
+            build/version.json
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build
+    # Also on a re-run of a released commit, so the cleanup below still happens.
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release and its tag
+      id-token: write # sign the attestation
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.build.outputs.version }}
+      PREVIOUS: ${{ needs.build.outputs.previous }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.build.outputs.skip != 'true'
+        with:
+          name: release
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: needs.build.outputs.skip != 'true'
+        with:
+          subject-path: CapyBar.zip
+
+      - name: Publish
+        if: needs.build.outputs.skip != 'true'
+        run: |
+          SHA256="$(sha256sum CapyBar.zip | cut -d' ' -f1)"
+          NOTES="Ad-hoc signed, not notarized: after moving CapyBar.app to Applications, allow it once in System Settings → Privacy & Security → Open Anyway.
+
+          SHA-256 of CapyBar.zip: \`$SHA256\`
+          Verify: \`gh attestation verify CapyBar.zip -R $GH_REPO\`"
+          gh release create "v$VERSION" CapyBar.zip version.json \
+            --target "$GITHUB_SHA" \
+            --title "CapyBar $VERSION" \
+            --latest \
+            --generate-notes ${PREVIOUS:+--notes-start-tag "$PREVIOUS"} \
+            --notes "$NOTES"
+
+      # One-time cleanup of the old rolling release; safe to remove afterwards.
+      - name: Remove the legacy "latest" release
+        run: |
+          if gh release view latest >/dev/null 2>&1; then
+            gh release delete latest --cleanup-tag --yes
+          fi

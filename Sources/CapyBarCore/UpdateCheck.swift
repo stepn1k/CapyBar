@@ -55,7 +55,7 @@ public enum UpdateCheckError: LocalizedError, Equatable {
     }
 }
 
-/// Reads `version.json` from the rolling "latest" GitHub release, which CI publishes next
+/// Reads `version.json` from the latest GitHub release, which CI publishes next
 /// to CapyBar.zip (see scripts/bundle.sh --zip). One GET of a tiny file: no cookies, no
 /// cache, nothing about the user or their apps is sent.
 public enum UpdateCheck {
