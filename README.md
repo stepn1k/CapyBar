@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/demo.gif" width="800" alt="Switching on apps in CapyBar's settings removes their icons from the menu bar. Clicking the capybara shows them in a panel.">
+  <img src="docs/demo.gif" width="720" alt="Switching on apps in CapyBar's settings removes their icons from the menu bar. Clicking the capybara shows them in a panel.">
 </p>
 
 Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones you pick and keeps them one click away, under the capybara.
@@ -56,8 +56,8 @@ scripts/bundle.sh --install
 You can also set a keyboard shortcut in Options. Then pick an icon with the arrow keys, open it with <kbd>Return</kbd>, or just start typing to search.
 
 <p align="center">
+  <img src="docs/screenshot-keyboard.png" width="340" alt="An icon picked with the arrow keys, ready to open with Return">
   <img src="docs/screenshot-search.png" width="340" alt="Typing “cl” narrows the panel down to Claude">
-  <img src="docs/screenshot-options.png" width="340" alt="Settings, Options tab: show apps that aren't running, hide new apps automatically, keyboard shortcut, open at login, automatic update checks">
 </p>
 
 ## Limitations
