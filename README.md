@@ -18,31 +18,28 @@
   <a href="https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip"><b>Download</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#usage">Usage</a> ·
-  <a href="#faq">FAQ</a> ·
-  <a href="#docs">Docs</a>
+  <a href="#faq">FAQ</a>
 </p>
 
 <p align="center">
-  <img src="docs/screenshot.png" width="440" alt="The CapyBar panel under the menu bar: six hidden app icons and a gear for settings">
+  <img src="docs/demo.gif" width="800" alt="Switching on apps in CapyBar's settings removes their icons from the menu bar. Clicking the capybara shows them in a panel.">
 </p>
 
 Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones you pick and keeps them one click away, under the capybara.
 
-- **Private.** No analytics, no accounts. Goes online only when you ask it to check for updates.
-- **One permission.** Accessibility, granted once.
-- **Safe.** Quit CapyBar, or let it crash, and every icon comes back.
-- **Stays put.** Hidden icons stay hidden after sleep, a restart or an app update. [How that's checked](docs/RELIABILITY.md).
+- **Private.** No analytics, no accounts. Goes online only to check for updates, if you allow it.
+- **One permission.** Accessibility, nothing else.
+- **Safe.** If CapyBar quits or crashes, every icon comes back.
+- **Stays put.** Icons stay hidden after sleep, restarts and app updates.
 
 ## Install
 
-**[Download the latest CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip)** ([release notes](https://github.com/stepn1k/CapyBar/releases))
+1. [Download CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip), unzip it and open CapyBar.app.
+2. macOS blocks it the first time, because CapyBar isn't notarized yet. Click Done, then go to System Settings → Privacy & Security and click Open Anyway.
+3. CapyBar moves itself to Applications and opens again.
+4. Allow Accessibility when asked.
 
-1. Unzip and open **CapyBar.app**.
-2. macOS blocks it, because CapyBar isn't notarized yet: click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
-3. CapyBar moves itself into **Applications** (it only works from there) and opens again.
-4. Grant **Accessibility** when asked and pick the apps to hide.
-
-Or build it yourself with the Command Line Tools:
+To build it yourself:
 
 ```bash
 git clone https://github.com/stepn1k/CapyBar.git
@@ -52,85 +49,54 @@ scripts/bundle.sh --install
 
 ## Usage
 
-- **Click** the capybara to see hidden icons, then click one to open its menu.
-- **Click the gear** for settings: **Apps** to choose and reorder, **Options** for the rest.
-- **Right-click** the capybara for Show All Icons, Check for Updates, Uninstall and Quit.
-- **Hold Option** while launching CapyBar to start with every icon visible.
+1. Click the capybara, then the gear, and switch on the apps you want to hide.
+2. Their icons leave the menu bar. To reach one, click the capybara, then click its icon.
+3. Right-click the capybara to show all icons again, check for updates or quit.
 
-| Key | Action |
-|---|---|
-| Your shortcut | Open CapyBar from any app. Record one in **Options**; there's none by default |
-| ← → ↑ ↓ | Choose an icon |
-| Return | Open its menu |
-| Type, or ⌘F | Search |
-| Esc | Close the search, then CapyBar |
-
-Hover over the capybara to see your shortcut. The **?** in settings lists these keys too.
+You can also set a keyboard shortcut in Options. Then pick an icon with the arrow keys, open it with <kbd>Return</kbd>, or just start typing to search.
 
 <p align="center">
-  <img src="docs/screenshot-keyboard.png" width="340" alt="An icon picked with the arrow keys, ready to open with Return">
   <img src="docs/screenshot-search.png" width="340" alt="Typing “cl” narrows the panel down to Claude">
-  <br>
-  <sub>Pick an icon with the arrow keys, or type to search</sub>
-</p>
-<p align="center">
-  <img src="docs/screenshot-apps.png" width="340" alt="Settings, Apps tab: a switch for each app with a menu bar icon, drag to reorder">
-  <img src="docs/screenshot-options.png" width="340" alt="Settings, Options tab: show apps that aren't running, hide new apps automatically, keyboard shortcut ⇧⌘C, open at login, automatic update checks">
-  <br>
-  <sub>Settings: choose apps to hide, and options</sub>
+  <img src="docs/screenshot-options.png" width="340" alt="Settings, Options tab: show apps that aren't running, hide new apps automatically, keyboard shortcut, open at login, automatic update checks">
 </p>
 
 ## Limitations
 
-- Apps are hidden whole: an app with several icons loses all of them.
-- While anything is hidden, macOS 27 also hides some system icons, like Focus or Now Playing.
-- Updates install like the first download, and macOS asks for Accessibility again after each one.
-- CapyBar is in beta and relies on a private macOS API. If a macOS update changes it, hiding turns off and every icon stays visible until CapyBar is updated.
-
-## Uninstall
-
-Right-click the capybara → **Uninstall CapyBar…**. It removes its permission, login item and settings, then moves itself to the Trash.
-
-Deleted it by hand? Remove CapyBar from **Privacy & Security → Accessibility** and clear its settings:
-
-```bash
-defaults delete app.capybar.CapyBar
-```
+- An app is hidden with all of its icons. You can't hide just one of them.
+- While anything is hidden, macOS also hides some system icons, like Focus and Now Playing.
 
 ## FAQ
 
-### How do I hide menu bar icons on macOS 27?
-
-Install CapyBar, grant Accessibility, and switch off the apps you want gone in **Settings → Apps**. Their icons leave the menu bar and wait in the capybara's panel.
-
 ### My menu bar icons are hidden behind the notch. How do I get to them?
 
-Hide the icons you don't need every day, and the rest fit next to the notch again. The hidden ones stay one click away in the panel.
+Hide the icons you don't need every day, and the rest fit next to the notch again.
 
 ### Is CapyBar an alternative to Bartender, Ice or Hidden Bar?
 
-For the main job, yes: you choose which menu bar icons are shown. CapyBar is free, MIT-licensed and built on macOS 27's own menu bar allowlist ([how it works](docs/HOW_IT_WORKS.md)). It hides whole apps rather than single icons.
+Yes, for the main job: choosing which icons are shown. CapyBar is free, uses macOS 27's own menu bar allowlist, and hides whole apps rather than single icons.
 
 ### Does CapyBar need Screen Recording?
 
-No. Accessibility is the only permission. The panel shows app icons, not captures of the menu bar.
+No. Accessibility is the only permission.
 
 ### macOS says CapyBar can't be opened. What do I do?
 
-CapyBar isn't notarized yet, so macOS blocks the first launch. See [Install](#install), step 2.
+Click Done, then go to System Settings → Privacy & Security and click Open Anyway.
 
-## Docs
+### Why does macOS ask for Accessibility again after an update?
 
-| I want to… | Read |
-|---|---|
-| Know how hiding works, and its limits | [How it works](docs/HOW_IT_WORKS.md) |
-| Know why icons stay hidden, or check it myself | [Reliability](docs/RELIABILITY.md) |
-| Know what CapyBar can access | [Security](SECURITY.md) |
-| Ask a question or suggest an idea | [Discussions](https://github.com/stepn1k/CapyBar/discussions) |
-| Report a bug | [Issues](https://github.com/stepn1k/CapyBar/issues/new/choose) |
-| Build, test or send a PR | [Contributing](CONTRIBUTING.md) |
-| Change the code, as a person or an AI agent | [AGENTS.md](AGENTS.md): file map, rules, checklist |
+CapyBar isn't signed with an Apple developer certificate yet, so macOS treats each update as a new app. Allow it again.
 
-## License
+### Can a macOS update break CapyBar?
 
-[MIT](LICENSE)
+It can, because CapyBar uses a private part of macOS. If that changes, CapyBar stops hiding and every icon stays visible until CapyBar is updated.
+
+### How do I uninstall it?
+
+Right-click the capybara and choose Uninstall CapyBar. It removes its settings and permission, then moves itself to the Trash. If you deleted it by hand, also run `defaults delete app.capybar.CapyBar`.
+
+## More
+
+[How it works](docs/HOW_IT_WORKS.md) · [Reliability](docs/RELIABILITY.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Questions](https://github.com/stepn1k/CapyBar/discussions) · [Report a bug](https://github.com/stepn1k/CapyBar/issues/new/choose)
+
+CapyBar is [MIT](LICENSE) licensed.
