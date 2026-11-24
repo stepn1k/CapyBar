@@ -45,7 +45,8 @@ struct SettingsSection: View {
     }
 
     private var tabHeight: CGFloat {
-        let list = controller.appEntries.isEmpty
+        let list =
+            controller.appEntries.isEmpty
             ? Self.rowHeight
             : min(CGFloat(controller.appEntries.count) * Self.rowHeight, Self.maxListHeight)
         return max(list + 8, Self.optionsHeight)
@@ -75,7 +76,11 @@ struct SettingsSection: View {
             SwitchRow(isOn: checksForUpdates) {
                 Text("Check for updates automatically")
             }
-            .help("Once a day, download a small file from GitHub with the newest version number. Nothing about you or your apps is sent.")
+            .help(
+                """
+                Once a day, download a small file from GitHub with the newest version number. \
+                Nothing about you or your apps is sent.
+                """)
             if controller.loginItemNeedsApproval {
                 HStack(spacing: 4) {
                     Text("Allow CapyBar in Login Items to finish.")

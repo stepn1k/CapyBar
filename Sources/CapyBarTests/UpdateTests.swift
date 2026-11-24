@@ -23,7 +23,8 @@ func updateTests() {
     check(ReleaseInfo(infoDictionary: plist) == release("0.2.0", 2), "version is read from Info.plist")
     check(ReleaseInfo(infoDictionary: nil) == nil, "no Info.plist, no version")
 
-    check(UpdateCheck.parse(Data(#"{"version":"0.3.0","build":3}"#.utf8)) == release("0.3.0", 3), "version.json is read")
+    check(
+        UpdateCheck.parse(Data(#"{"version":"0.3.0","build":3}"#.utf8)) == release("0.3.0", 3), "version.json is read")
     check(UpdateCheck.parse(Data(#"{"version":"0.3.0"}"#.utf8)) == nil, "version.json without a build is rejected")
     check(UpdateCheck.parse(Data("<html>Not Found</html>".utf8)) == nil, "an HTML page is rejected")
     let huge = #"{"version":"1.0","build":1,"pad":""# + String(repeating: "x", count: 5_000) + #""}"#

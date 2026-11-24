@@ -87,7 +87,8 @@ public enum UpdateCheck {
         let session = URLSession(configuration: config)
         defer { session.finishTasksAndInvalidate() }
 
-        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: timeout)
+        let request = URLRequest(
+            url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: timeout)
         let (data, response) = try await session.data(for: request)
         // GitHub redirects release downloads to its asset host; insist it stays on HTTPS.
         guard let http = response as? HTTPURLResponse, http.url?.scheme == "https" else {

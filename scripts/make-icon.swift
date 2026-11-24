@@ -143,7 +143,9 @@ func png(pixels: Int) -> Data {
 func quantize(_ file: URL) {
     let pngquant = Process()
     pngquant.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    pngquant.arguments = ["pngquant", "--quality=85-98", "--speed", "1", "--strip", "--force", "--ext", ".png", file.path]
+    pngquant.arguments = [
+        "pngquant", "--quality=85-98", "--speed", "1", "--strip", "--force", "--ext", ".png", file.path,
+    ]
     pngquant.standardError = FileHandle.nullDevice
     guard (try? pngquant.run()) != nil else { return }
     pngquant.waitUntilExit()
