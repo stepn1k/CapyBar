@@ -12,7 +12,7 @@ scripts/bundle.sh --install  # build and install into /Applications
 scripts/bundle.sh --zip      # build and pack build/CapyBar.zip to share
 ```
 
-Every push to `main` runs the tests on GitHub Actions (`.github/workflows/build.yml`) and publishes the build as `CapyBar.zip` on the rolling `latest` release. It then refreshes the version and date in README's download line (`scripts/readme-download.sh`) and pushes that as a bot commit, so pull before you push.
+Every push to `main` runs the tests on GitHub Actions (`.github/workflows/build.yml`) and publishes the build as `CapyBar.zip` on the rolling `latest` release, together with `version.json`, which the app's update check reads. The app offers an update only when `CFBundleShortVersionString` or `CFBundleVersion` in `Resources/Info.plist` goes up, so bump them (the build is a whole number) when a push should reach users. It then refreshes the version and date in README's download line (`scripts/readme-download.sh`) and pushes that as a bot commit, so pull before you push.
 
 Tests are a plain executable, because the Command Line Tools ship without XCTest. The private API, Accessibility and mouse clicks are replaced with fakes, so tests never touch the real menu bar.
 

@@ -75,6 +75,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     /// Opens the panel, on the app list when asked to or when nothing is hidden yet.
     func showPanel(withSettings: Bool = false) {
         controller.refreshItems()
+        Updater.shared.checkIfDue()
         if withSettings || controller.wantsSettingsOnOpen { controller.showsSettings = true }
         guard !popover.isShown, let button = statusItem.button else { return }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -110,6 +111,18 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             menu.addItem(withTitle: "Show All Icons", action: #selector(pause), keyEquivalent: "").target = self
         }
         menu.addItem(withTitle: "Settings…", action: #selector(settingsChosen), keyEquivalent: ",").target = self
+        let updater = Updater.shared
+        if let update = updater.available {
+            menu.addItem(
+                withTitle: "Download CapyBar \(update.version)…", action: #selector(downloadUpdate), keyEquivalent: ""
+            ).target = self
+        } else {
+            let item = menu.addItem(
+                withTitle: updater.isChecking ? "Checking for Updates…" : "Check for Updates…",
+                action: #selector(checkForUpdates), keyEquivalent: "")
+            item.target = self
+            item.isEnabled = !updater.isChecking
+        }
         menu.addItem(.separator())
         menu.addItem(withTitle: "Uninstall CapyBar…", action: #selector(uninstallChosen), keyEquivalent: "")
             .target = self
@@ -128,6 +141,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     @objc private func pause() { controller.isPaused = true }
     @objc private func resume() { controller.isPaused = false }
     @objc private func settingsChosen() { showPanel(withSettings: true) }
+    @objc private func checkForUpdates() { Updater.shared.checkNow() }
+    @objc private func downloadUpdate() { Updater.shared.openDownloadPage() }
 
     @objc private func uninstallChosen() {
         // An accessory app's alert would open behind the frontmost app.

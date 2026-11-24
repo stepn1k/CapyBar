@@ -41,7 +41,7 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           # Recreate the release so its tag always points at the commit that was built.
           gh release delete latest --cleanup-tag --yes 2>/dev/null || true
-          gh release create latest build/CapyBar.zip \
+          gh release create latest build/CapyBar.zip build/version.json \
             --target "$GITHUB_SHA" \
             --title "CapyBar $VERSION (main, $SHORT_SHA)" \
             --notes "Automatic build of main at $GITHUB_SHA. Ad-hoc signed, not notarized: after moving CapyBar.app to Applications, allow it once in System Settings → Privacy & Security → Open Anyway."

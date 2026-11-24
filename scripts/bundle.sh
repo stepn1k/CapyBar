@@ -54,6 +54,13 @@ if (( ZIP )); then
   rm -f "$ZIPFILE"
   ditto -c -k --keepParent "$APP" "$ZIPFILE"
   echo "Packed $ZIPFILE"
+  # Published next to the zip; the app's update check reads it (UpdateCheck.swift).
+  VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)"
+  BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' Resources/Info.plist)"
+  [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]] || { echo "Unexpected version: $VERSION" >&2; exit 1; }
+  [[ "$BUILD" =~ ^[0-9]+$ ]] || { echo "CFBundleVersion must be a whole number: $BUILD" >&2; exit 1; }
+  printf '{"version":"%s","build":%s}\n' "$VERSION" "$BUILD" > "$ROOT/build/version.json"
+  echo "Wrote $ROOT/build/version.json ($VERSION, build $BUILD)"
 fi
 
 (( INSTALL )) || exit 0

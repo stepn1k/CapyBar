@@ -10,6 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = StatusItemController(controller: controller)
         controller.start()
+        // Off unless the user turned on automatic checks. Not right at launch, so a
+        // login-time start does not race the network coming up.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { Updater.shared.checkIfDue() }
         // Show where CapyBar lives and what to do first. A moment later, so the status
         // item has its place in the menu bar to anchor the panel to.
         if controller.isFirstRun {

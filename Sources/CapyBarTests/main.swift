@@ -7,6 +7,7 @@ allowlistTests()
 preferencesTests()
 presserTests()
 outsideClickTests()
+updateTests()
 await restrictionTests()
 
 print(failures == 0 ? "\nall \(passed) passed" : "\n\(failures) failed, \(passed) passed")

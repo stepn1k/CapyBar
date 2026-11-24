@@ -11,6 +11,8 @@ public final class Preferences {
         package static let appOrder = "appOrder"
         package static let loginItemOffered = "loginItemOffered"
         package static let showsNotRunningApps = "showsNotRunningApps"
+        package static let checksForUpdates = "checksForUpdates"
+        package static let lastUpdateCheck = "lastUpdateCheck"
         package static let iconless = "iconlessBundleIDs"
     }
 
@@ -53,6 +55,19 @@ public final class Preferences {
     public var showsNotRunningApps: Bool {
         get { defaults.bool(forKey: Key.showsNotRunningApps) }
         set { defaults.set(newValue, forKey: Key.showsNotRunningApps) }
+    }
+
+    /// Look for a new version on GitHub once a day. Off by default: CapyBar makes no
+    /// network requests unless the user turns this on or checks by hand.
+    public var checksForUpdates: Bool {
+        get { defaults.bool(forKey: Key.checksForUpdates) }
+        set { defaults.set(newValue, forKey: Key.checksForUpdates) }
+    }
+
+    /// When the last successful update check finished.
+    public var lastUpdateCheck: Date? {
+        get { defaults.object(forKey: Key.lastUpdateCheck) as? Date }
+        set { defaults.set(newValue, forKey: Key.lastUpdateCheck) }
     }
 
     /// "Open at Login" is turned on by CapyBar itself only once; after that the switch

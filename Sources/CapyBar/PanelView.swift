@@ -108,10 +108,17 @@ struct VersionLabel: View {
     static let text = "Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")"
 
     var body: some View {
-        Text(Self.text)
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
-            .textSelection(.enabled)
+        HStack(spacing: 6) {
+            Text(Self.text)
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
+            if let update = Updater.shared.available {
+                Button("Update to \(update.version)") { Updater.shared.openDownloadPage() }
+                    .buttonStyle(.link)
+                    .help("Open the download page on GitHub")
+            }
+        }
+        .font(.caption2)
     }
 }
 

@@ -13,7 +13,7 @@ struct SettingsSection: View {
     private static let maxListHeight: CGFloat = 240
     /// Rough height of the Options card; the taller tab sets the area's height, so
     /// switching tabs does not make the panel jump.
-    private static let optionsHeight: CGFloat = 96
+    private static let optionsHeight: CGFloat = 124
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -71,6 +71,11 @@ struct SettingsSection: View {
                 controller.canHide
                     ? "Start CapyBar when you log in, so hidden icons stay hidden after a restart"
                     : "Available once CapyBar is in the Applications folder")
+            CardDivider()
+            SwitchRow(isOn: checksForUpdates) {
+                Text("Check for updates automatically")
+            }
+            .help("Once a day, download a small file from GitHub with the newest version number. Nothing about you or your apps is sent.")
             if controller.loginItemNeedsApproval {
                 HStack(spacing: 4) {
                     Text("Allow CapyBar in Login Items to finish.")
@@ -88,6 +93,13 @@ struct SettingsSection: View {
         Binding(
             get: { controller.opensAtLogin },
             set: { controller.setOpensAtLogin($0) }
+        )
+    }
+
+    private var checksForUpdates: Binding<Bool> {
+        Binding(
+            get: { Updater.shared.checksAutomatically },
+            set: { Updater.shared.checksAutomatically = $0 }
         )
     }
 

@@ -26,7 +26,7 @@
 
 Too many icons in the menu bar, and on a MacBook with a notch some end up behind it. CapyBar hides the ones you pick and keeps them one click away, under the capybara.
 
-- **Private.** No network, no analytics, no accounts, no Screen Recording permission.
+- **Private.** No analytics, no accounts, no Screen Recording permission. No network either, unless you check for updates.
 - **One permission.** Grant Accessibility once, switch on the apps to hide.
 - **Nothing to lose.** Quit CapyBar and every hidden icon comes back at once, even after a crash.
 
@@ -61,6 +61,10 @@ On first launch CapyBar asks for **Accessibility** access. Grant it, then pick t
 ## Using it
 
 Click the capybara to see your hidden icons, then click one to open that app's real menu. The gear opens settings: **Apps** lists the apps to hide (drag to reorder), **Options** has the rest. To get every icon back for a while, right-click the capybara and choose **Show All Icons**, or just quit CapyBar. The same menu has Uninstall and Quit.
+
+### Updates
+
+Right-click the capybara → **Check for Updates…**, or turn on **Check for updates automatically** in Options (off by default). Either way CapyBar downloads one small file from GitHub with the newest version number; nothing about you or your apps is sent. When there is a new version, download it and replace CapyBar in Applications. macOS asks for Accessibility again after the update.
 
 ## Good to know
 
