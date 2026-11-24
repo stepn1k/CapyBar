@@ -14,9 +14,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshot.png" width="280" align="top" alt="CapyBar panel with five hidden app icons under the menu bar">
-  <img src="docs/screenshot-apps.png" width="230" alt="Settings, Apps tab: a switch for each app with a menu bar icon">
-  <img src="docs/screenshot-options.png" width="230" alt="Settings, Options tab: show apps that aren't running, hide new apps automatically, open at login">
+  <img src="docs/screenshot.png" width="250" alt="CapyBar panel with four hidden app icons under the menu bar">
+  <img src="docs/screenshot-apps.png" width="250" alt="Settings, Apps tab: a switch for each app with a menu bar icon">
+  <img src="docs/screenshot-options.png" width="250" alt="Settings, Options tab: show apps that aren't running, hide new apps automatically, open at login">
 </p>
 
 Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones you pick and keeps them one click away, under the capybara.
