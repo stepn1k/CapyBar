@@ -106,24 +106,24 @@ func reliabilityTests() async {
         let script = ScriptedResend(answers: [false, true])
         let keeper = script.makeKeeper()
         keeper.trigger(.failed)
-        await wait(.milliseconds(100))
-        check(script.calls == 2, "a refused resend is retried")
+        await checkEventually("a refused resend is retried") { script.calls == 2 }
         check(keeper.lastOutcome == .restored(.failed, attempt: 2), "restored on the second attempt")
     }
     do {
         let script = ScriptedResend(answers: [false, false, false, false, false])
         let keeper = script.makeKeeper()
         keeper.trigger(.agentRestarted)
-        await wait(.milliseconds(200))
+        await checkEventually("reports that it gave up") { keeper.lastOutcome == .gaveUp(.agentRestarted, attempts: 3) }
+        await wait(.milliseconds(100))
         check(script.calls == 3, "gives up after maxAttempts, no endless loop")
-        check(keeper.lastOutcome == .gaveUp(.agentRestarted, attempts: 3), "reports that it gave up")
         check(!keeper.isWaiting, "nothing keeps running after giving up")
     }
     do {
         let script = ScriptedResend(answers: [false, false, false])
         let keeper = script.makeKeeper()
         keeper.trigger(.failed)
-        await wait(.milliseconds(15))
+        // Wait for the first resend itself: a fixed delay races it on a slow CI runner.
+        await checkEventually("first resend refused") { script.calls == 1 }
         script.wanted = false  // the hidden app quit meanwhile
         await wait(.milliseconds(100))
         check(script.calls == 1, "stops retrying once nothing hidden runs")
