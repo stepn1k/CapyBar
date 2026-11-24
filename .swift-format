@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "indentation": { "spaces": 4 },
+  "tabWidth": 4,
+  "lineLength": 120,
+  "maximumBlankLines": 1,
+  "respectsExistingLineBreaks": true,
+  "lineBreakBeforeEachArgument": false,
+  "lineBreakBeforeControlFlowKeywords": false,
+  "indentConditionalCompilationBlocks": true,
+  "prioritizeKeepingFunctionOutputTogether": true,
+  "rules": {
+    "AllPublicDeclarationsHaveDocumentation": false,
+    "AlwaysUseLowerCamelCase": true,
+    "DoNotUseSemicolons": true,
+    "FileScopedDeclarationPrivacy": true,
+    "NeverForceUnwrap": false,
+    "NeverUseForceTry": true,
+    "NoBlockComments": true,
+    "OrderedImports": true,
+    "UseLetInEveryBoundCaseVariable": true,
+    "UseShorthandTypeNames": true,
+    "UseTripleSlashForDocumentationComments": true,
+    "ValidateDocumentationComments": false
+  }
+}

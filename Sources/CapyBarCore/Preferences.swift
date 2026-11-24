@@ -1,0 +1,103 @@
+import Foundation
+
+@MainActor
+public final class Preferences {
+
+    package enum Key {
+        package static let hidden = "hiddenBundleIDs"
+        package static let known = "knownBundleIDs"
+        package static let hideNewApps = "hideNewApps"
+        package static let preferredMethods = "preferredPressMethods"
+        package static let appOrder = "appOrder"
+        package static let loginItemOffered = "loginItemOffered"
+        package static let showsNotRunningApps = "showsNotRunningApps"
+    }
+
+    /// Upper bounds so a corrupted or hand-edited plist cannot blow up memory or the
+    /// allowlist we send to MenuBarAgent.
+    static let maxEntries = 5_000
+    static let maxIDLength = 255
+
+    private let defaults: UserDefaults
+
+    public init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        defaults.register(defaults: [Key.hideNewApps: true])
+    }
+
+    public var hidden: Set<String> {
+        get { readSet(Key.hidden) }
+        set { writeSet(newValue, Key.hidden) }
+    }
+
+    /// Every app CapyBar has seen, so "new app" can be told apart from "known app".
+    public var known: Set<String> {
+        get { readSet(Key.known) }
+        set { writeSet(newValue, Key.known) }
+    }
+
+    public var hideNewApps: Bool {
+        get { defaults.bool(forKey: Key.hideNewApps) }
+        set { defaults.set(newValue, forKey: Key.hideNewApps) }
+    }
+
+    /// Hidden apps that are not running also appear in the cubby, greyed out. Off by default.
+    public var showsNotRunningApps: Bool {
+        get { defaults.bool(forKey: Key.showsNotRunningApps) }
+        set { defaults.set(newValue, forKey: Key.showsNotRunningApps) }
+    }
+
+    /// "Open at Login" is turned on by CapyBar itself only once; after that the switch
+    /// is the user's, so turning it off sticks.
+    public var loginItemOffered: Bool {
+        get { defaults.bool(forKey: Key.loginItemOffered) }
+        set { defaults.set(newValue, forKey: Key.loginItemOffered) }
+    }
+
+    /// The user's order of apps in settings and in the cubby. Apps not in it go last.
+    public var appOrder: [String] {
+        get { Self.uniqueValidIDs((defaults.array(forKey: Key.appOrder) ?? []).compactMap { $0 as? String }) }
+        set { defaults.set(Self.uniqueValidIDs(newValue), forKey: Key.appOrder) }
+    }
+
+    public func preferredMethod(for bundleID: String) -> PressMethod {
+        (defaults.dictionary(forKey: Key.preferredMethods)?[bundleID] as? String)
+            .flatMap(PressMethod.init(rawValue:)) ?? .accessibility
+    }
+
+    public func setPreferredMethod(_ method: PressMethod, for bundleID: String) {
+        guard Self.isValidBundleID(bundleID) else { return }
+        var map = (defaults.dictionary(forKey: Key.preferredMethods) as? [String: String] ?? [:])
+            .filter { Self.isValidBundleID($0.key) && PressMethod(rawValue: $0.value) != nil }
+        guard map[bundleID] != method.rawValue else { return }
+        map[bundleID] = method.rawValue
+        if map.count > Self.maxEntries { map = [bundleID: method.rawValue] }
+        defaults.set(map, forKey: Key.preferredMethods)
+    }
+
+    // MARK: - Storage
+
+    public static func isValidBundleID(_ id: String) -> Bool {
+        !id.isEmpty && id.utf8.count <= maxIDLength
+    }
+
+    private static func uniqueValidIDs(_ ids: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for id in ids where isValidBundleID(id) && seen.insert(id).inserted {
+            result.append(id)
+            if result.count == maxEntries { break }
+        }
+        return result
+    }
+
+    private func readSet(_ key: String) -> Set<String> {
+        // Keep the valid strings of a damaged list rather than dropping all of it.
+        let raw = (defaults.array(forKey: key) ?? []).compactMap { $0 as? String }
+        return Set(raw.lazy.filter(Self.isValidBundleID).prefix(Self.maxEntries))
+    }
+
+    private func writeSet(_ value: Set<String>, _ key: String) {
+        defaults.set(Array(value.filter(Self.isValidBundleID).sorted().prefix(Self.maxEntries)), forKey: key)
+    }
+}
