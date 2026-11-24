@@ -91,13 +91,18 @@ public final class Restriction {
     ///
     /// The new assertion is activated before the old one is released (the newest wins),
     /// so the bar never flashes every icon in between. An unchanged list is not sent
-    /// again: every new assertion makes MenuBarAgent re-lay out the whole bar.
-    public func apply(allowing bundleIDs: Set<String>, completion: (@MainActor (Failure?) -> Void)? = nil) {
+    /// again: every new assertion makes MenuBarAgent re-lay out the whole bar. `force`
+    /// sends it anyway.
+    public func apply(
+        allowing bundleIDs: Set<String>,
+        force: Bool = false,
+        completion: (@MainActor (Failure?) -> Void)? = nil
+    ) {
         guard backend.isAvailable else {
             completion?(.unavailable)
             return
         }
-        if assertion != nil, applied == bundleIDs {
+        if !force, assertion != nil, applied == bundleIDs {
             // Same list: if it is still waiting for MenuBarAgent, answer when it does.
             if let completion, pending[generation] != nil {
                 pending[generation]?.completions.append(completion)

@@ -44,6 +44,9 @@ final class CubbyController {
     static let launchDebounce: Duration = .milliseconds(500)
     /// How long a revealed app that was never laid out may take to publish its icons.
     static let revealTimeout: TimeInterval = 1.5
+    /// A freshly started MenuBarAgent needs a moment; attempt N waits N times this long.
+    static let resendDelay: Duration = .seconds(1)
+    static let resendAttempts = 3
 
     // Derived lists are rebuilt only when their inputs change, never per SwiftUI render.
     private(set) var appEntries: [AppEntry] = []
@@ -112,6 +115,8 @@ final class CubbyController {
     @ObservationIgnored private var runningCheckScheduled = false
     @ObservationIgnored private var askedForAccessibility = false
     @ObservationIgnored private var trustObserver: NSObjectProtocol?
+    @ObservationIgnored private var agentWatch = MenuBarAgentWatch(currentPID: nil)
+    @ObservationIgnored private var resendTask: Task<Void, Never>?
 
     var isRestrictionAvailable: Bool { restriction.isAvailable }
 
@@ -165,6 +170,7 @@ final class CubbyController {
         if prefs.known.isEmpty { prefs.known = running }
         known = prefs.known
         lastRunning = running
+        agentWatch = MenuBarAgentWatch(currentPID: MenuBarAgentWatch.currentPID())
 
         // KVO on runningApplications, not didLaunchApplicationNotification: the
         // notification is not posted for LSUIElement apps, which most menu bar apps are.
@@ -188,6 +194,9 @@ final class CubbyController {
     /// launched is handled at once, so its icon does not flash before the restriction
     /// catches it.
     private func scheduleRunningAppsCheck() {
+        if agentWatch.observe(MenuBarAgentWatch.currentPID()) {
+            scheduleResend(attempt: 1)
+        }
         if !hidden.isEmpty, !runningBundleIDs.subtracting(lastRunning).isDisjoint(with: hidden) {
             runningAppsChanged()
             return
@@ -199,6 +208,19 @@ final class CubbyController {
             guard let self else { return }
             runningCheckScheduled = false
             runningAppsChanged()
+        }
+    }
+
+    /// Sends the restriction to a restarted MenuBarAgent, retrying if it isn't ready yet.
+    private func scheduleResend(attempt: Int) {
+        // A newer MenuBarAgent replaces a resend still waiting for an older one.
+        resendTask?.cancel()
+        resendTask = Task { [weak self] in
+            guard (try? await Task.sleep(for: Self.resendDelay * attempt)) != nil, let self else { return }
+            apply(force: true) { [weak self] in
+                guard let self, attempt < Self.resendAttempts else { return }
+                if restriction.allowed == nil, wantsRestriction { scheduleResend(attempt: attempt + 1) }
+            }
         }
     }
 
@@ -296,21 +318,31 @@ final class CubbyController {
 
     /// Recomputes the allowlist and hands it to MenuBarAgent (skipped when unchanged).
     /// The completion always runs, also when nothing needs hiding or the call fails.
-    func apply(completion: (@MainActor () -> Void)? = nil) {
+    func apply(force: Bool = false, completion: (@MainActor () -> Void)? = nil) {
         let running = runningBundleIDs
-        guard canHide, !isPaused,
-            Allowlist.needsRestriction(running: running, hidden: hidden, revealed: revealed, ownBundleID: ownID)
-        else {
+        guard wantsRestriction(running: running) else {
             restriction.clear()
             completion?()
             return
         }
         let allowed = Allowlist.compute(
             running: running, known: known, hidden: hidden, revealed: revealed, ownBundleID: ownID)
-        restriction.apply(allowing: allowed) { [weak self] failure in
-            if let failure { self?.message = Self.describe(failure) }
+        restriction.apply(allowing: allowed, force: force) { [weak self] failure in
+            if let failure {
+                self?.message = Self.describe(failure)
+            } else if let self, let message, Self.restrictionMessages.contains(message) {
+                self.message = nil  // an earlier failure no longer holds
+            }
             completion?()
         }
+    }
+
+    /// Something hidden is running and hiding is allowed right now.
+    private var wantsRestriction: Bool { wantsRestriction(running: runningBundleIDs) }
+
+    private func wantsRestriction(running: Set<String>) -> Bool {
+        canHide && !isPaused
+            && Allowlist.needsRestriction(running: running, hidden: hidden, revealed: revealed, ownBundleID: ownID)
     }
 
     func setHidden(_ isHidden: Bool, for bundleID: String) {
@@ -650,4 +682,6 @@ final class CubbyController {
         case .rejected: "Couldn’t hide icons."
         }
     }
+
+    private static let restrictionMessages: Set<String> = [describe(.unavailable), describe(.rejected(""))]
 }

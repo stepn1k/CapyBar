@@ -182,6 +182,37 @@ func restrictionTests() async {
         check(restriction.allowed == ["a", "b"], "the newer allowlist stays in charge")
     }
 
+    section("Restriction: forced resend (MenuBarAgent restarted)")
+    do {
+        let fake = FakeBackend()
+        let restriction = makeRestriction(fake)
+        restriction.apply(allowing: ["a"])
+        fake.reply(0)
+        let resent = Outcome()
+        restriction.apply(allowing: ["a"], force: true, completion: resent.record)
+        check(fake.activations == 2 && fake.ids(of: 1) == ["a"], "unchanged list is sent again when forced")
+        check(fake.alive == [0, 1] && !resent.called, "the old one is kept until the new one is confirmed")
+        fake.reply(1)
+        check(fake.alive == [1] && resent.results == [nil], "confirmed: the old one is released")
+
+        let failed = Outcome()
+        restriction.apply(allowing: ["a"], force: true, completion: failed.record)
+        fake.reply(2, error: "agent not ready")
+        check(failed.results == [.rejected("agent not ready")], "a failed resend is reported")
+        check(fake.alive.isEmpty && restriction.allowed == nil, "and fails open, so the next apply sends again")
+    }
+
+    section("MenuBarAgentWatch")
+    do {
+        var watch = MenuBarAgentWatch(currentPID: 100)
+        check(!watch.observe(100), "same MenuBarAgent: nothing to resend")
+        check(!watch.observe(nil), "MenuBarAgent gone for a moment: wait for the next one")
+        check(watch.observe(200), "new MenuBarAgent: resend")
+        check(!watch.observe(200), "only once per new MenuBarAgent")
+        var late = MenuBarAgentWatch(currentPID: nil)
+        check(late.observe(300), "first MenuBarAgent after none at launch: resend")
+    }
+
     section("Restriction: replies out of order")
     do {
         let fake = FakeBackend()

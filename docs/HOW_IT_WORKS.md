@@ -4,7 +4,7 @@
 
 macOS 27 has a private "assessment mode" (`MBAssessmentModeAssertion` in `MenuBarClientCore`): while it is active, the menu bar shows icons only for an allowlist of apps. CapyBar holds that assertion with every running app on the list except the ones you hid.
 
-The assertion lives exactly as long as the CapyBar process, which is why quitting or crashing restores everything.
+The assertion lives exactly as long as the CapyBar process, which is why quitting or crashing restores everything. If MenuBarAgent restarts, CapyBar sends it again.
 
 MenuBarAgent matches allowlisted apps by bundle ID through LaunchServices, so CapyBar's own icon stays visible only when the running copy is the one LaunchServices resolves. That is why CapyBar refuses to hide anything unless it runs from `/Applications`.
 
