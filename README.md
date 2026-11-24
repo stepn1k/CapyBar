@@ -56,8 +56,7 @@ scripts/bundle.sh --install
 You can also set a keyboard shortcut in Options. Then pick an icon with the arrow keys, open it with <kbd>Return</kbd>, or just start typing to search.
 
 <p align="center">
-  <img src="docs/screenshot-keyboard.png" width="340" alt="An icon picked with the arrow keys, ready to open with Return">
-  <img src="docs/screenshot-search.png" width="340" alt="Typing “cl” narrows the panel down to Claude">
+  <img src="docs/keyboard.gif" width="600" alt="The arrow keys move between hidden icons. Typing “cla” narrows the panel down to Claude.">
 </p>
 
 ## Limitations
