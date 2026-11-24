@@ -5,7 +5,7 @@
 <h1 align="center">CapyBar</h1>
 
 <p align="center">
-  Hide menu bar icons on macOS 27.
+  Hide menu bar icons on macOS 27. Free and open source.
 </p>
 
 <p align="center">
@@ -59,6 +59,28 @@ Automatic update checks are off by default. A check fetches one small version fi
 Right-click the capybara → **Uninstall CapyBar…**. It removes its permission, login item and settings, then moves itself to the Trash.
 
 Deleted it by hand? Run `defaults delete app.capybar.CapyBar` and remove CapyBar from **Privacy & Security → Accessibility**.
+
+## FAQ
+
+### How do I hide menu bar icons on macOS 27?
+
+Install CapyBar, grant Accessibility, and switch off the apps you want gone in **Settings → Apps**. Their icons leave the menu bar and wait in the capybara's panel.
+
+### My menu bar icons are hidden behind the notch. How do I get to them?
+
+Hide the icons you don't need every day, and the rest fit next to the notch again. The hidden ones stay one click away in the panel.
+
+### Is CapyBar an alternative to Bartender, Ice or Hidden Bar?
+
+For the main job, yes: you choose which menu bar icons are shown. CapyBar is free, MIT-licensed and built on macOS 27's own menu bar allowlist ([how it works](docs/HOW_IT_WORKS.md)). It hides whole apps rather than single icons.
+
+### Does CapyBar need Screen Recording?
+
+No. Accessibility is the only permission. The panel shows app icons, not captures of the menu bar.
+
+### macOS says CapyBar can't be opened. What do I do?
+
+CapyBar isn't notarized yet. Click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
 
 ## Contributing
 
