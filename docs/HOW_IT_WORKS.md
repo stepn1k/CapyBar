@@ -6,7 +6,7 @@ macOS 27 has a private "assessment mode" (`MBAssessmentModeAssertion` in `MenuBa
 
 The assertion lives exactly as long as the CapyBar process, which is why quitting or crashing restores everything. If MenuBarAgent restarts, the Mac wakes, or the session comes back from another user, CapyBar sends it again, retrying while MenuBarAgent is not ready (see [Reliability](RELIABILITY.md)).
 
-MenuBarAgent matches allowlisted apps by bundle ID through LaunchServices, so CapyBar's own icon stays visible only when the running copy is the one LaunchServices resolves. That is why CapyBar refuses to hide anything unless it runs from `/Applications`. A copy opened from Downloads, which Gatekeeper runs from a temporary read-only folder (App Translocation), moves itself into `/Applications` as CapyBar.app, replacing an older build there (never a newer one), and starts again from there.
+MenuBarAgent matches allowlisted apps by bundle ID through LaunchServices, so CapyBar's own icon stays visible only when the running copy is the one LaunchServices resolves. That is why CapyBar hides nothing unless it runs from `/Applications`; a copy opened anywhere else moves itself there and starts again.
 
 ## Opening a hidden item
 
@@ -16,9 +16,7 @@ The panel shows app icons, not captures of the menu bar glyphs, so CapyBar never
 
 ## Shortcut and search
 
-The shortcut, once the user records one (there is no default, since a global shortcut takes its combination away from every app), is registered with Carbon's `RegisterEventHotKey`, which delivers only that one combination: no Input Monitoring or Accessibility permission, and no other keystroke is ever seen.
-
-Opening the panel activates CapyBar so it gets typing; closing it hands the keyboard back to the previous app, unless you had already switched to another one. While the panel is open, an AppKit monitor reads CapyBar's own key-downs, `PanelKeyRoute` maps each to an action (arrows, Return, typing or ⌘F to search, ⌘V, Escape) and `PanelNavigator` holds the state. Both live in `CapyBarCore` and are tested without UI; the views only draw the state, since a popover doesn't reliably give SwiftUI focus.
+The shortcut you record is registered with Carbon's `RegisterEventHotKey`, which delivers only that one combination: no Input Monitoring or Accessibility permission, and no other keystroke is ever seen. While the panel is open, CapyBar reads only its own key presses.
 
 Search matches the names in the panel, ignoring case and accents: prefix first, then word starts, then initials ("im" for iStat Menus), then anywhere.
 

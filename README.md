@@ -17,9 +17,9 @@
 <p align="center">
   <a href="https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip"><b>Download</b></a> ·
   <a href="#install">Install</a> ·
-  <a href="#using-it">Using it</a> ·
+  <a href="#usage">Usage</a> ·
   <a href="#faq">FAQ</a> ·
-  <a href="#where-to-find-what">Docs</a>
+  <a href="#docs">Docs</a>
 </p>
 
 <p align="center">
@@ -28,7 +28,7 @@
 
 Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones you pick and keeps them one click away, under the capybara.
 
-- **Private.** No analytics, no accounts, no Screen Recording. Goes online only when you ask it to check for updates.
+- **Private.** No analytics, no accounts. Goes online only when you ask it to check for updates.
 - **One permission.** Accessibility, granted once.
 - **Safe.** Quit CapyBar, or let it crash, and every icon comes back.
 - **Stays put.** Hidden icons stay hidden after sleep, a restart or an app update. [How that's checked](docs/RELIABILITY.md).
@@ -37,46 +37,65 @@ Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones 
 
 **[Download the latest CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip)** ([release notes](https://github.com/stepn1k/CapyBar/releases))
 
-1. Unzip and open **CapyBar.app**. CapyBar isn't notarized, so macOS blocks it: click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
-2. CapyBar moves itself into **Applications** (it only works from there) and opens again. Updates install the same way.
-3. Grant **Accessibility** when asked and pick the apps to hide. macOS asks again after every update.
+1. Unzip and open **CapyBar.app**.
+2. macOS blocks it, because CapyBar isn't notarized yet: click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
+3. CapyBar moves itself into **Applications** (it only works from there) and opens again.
+4. Grant **Accessibility** when asked and pick the apps to hide.
 
 Or build it yourself with the Command Line Tools:
 
 ```bash
-git clone https://github.com/stepn1k/CapyBar.git && cd CapyBar && scripts/bundle.sh --install
+git clone https://github.com/stepn1k/CapyBar.git
+cd CapyBar
+scripts/bundle.sh --install
 ```
 
-## Using it
+## Usage
 
-- **Click** the capybara to see hidden icons; click one to open its menu.
-- **Shortcut:** record one in **Options** to open CapyBar from any app, with no extra permission. There's none by default, so no app loses a shortcut it uses; hover over the capybara to see yours.
-- **Keyboard:** arrows choose an icon and **Return** opens its menu. Type a name or press **⌘F** to search; **Esc** closes the search, then CapyBar.
-- **Gear** opens settings: **Apps** to choose and reorder, **Options** for the rest.
-- **Right-click** for Show All Icons, Check for Updates, Uninstall and Quit. The **?** in settings sums all this up.
+- **Click** the capybara to see hidden icons, then click one to open its menu.
+- **Click the gear** for settings: **Apps** to choose and reorder, **Options** for the rest.
+- **Right-click** the capybara for Show All Icons, Check for Updates, Uninstall and Quit.
+- **Hold Option** while launching CapyBar to start with every icon visible.
+
+| Key | Action |
+|---|---|
+| Your shortcut | Open CapyBar from any app. Record one in **Options**; there's none by default |
+| ← → ↑ ↓ | Choose an icon |
+| Return | Open its menu |
+| Type, or ⌘F | Search |
+| Esc | Close the search, then CapyBar |
+
+Hover over the capybara to see your shortcut. The **?** in settings lists these keys too.
 
 <p align="center">
   <img src="docs/screenshot-keyboard.png" width="340" alt="An icon picked with the arrow keys, ready to open with Return">
   <img src="docs/screenshot-search.png" width="340" alt="Typing “cl” narrows the panel down to Claude">
+  <br>
+  <sub>Pick an icon with the arrow keys, or type to search</sub>
 </p>
 <p align="center">
   <img src="docs/screenshot-apps.png" width="340" alt="Settings, Apps tab: a switch for each app with a menu bar icon, drag to reorder">
   <img src="docs/screenshot-options.png" width="340" alt="Settings, Options tab: show apps that aren't running, hide new apps automatically, keyboard shortcut ⇧⌘C, open at login, automatic update checks">
+  <br>
+  <sub>Settings: choose apps to hide, and options</sub>
 </p>
 
-Automatic update checks are off by default. A check fetches one small version file from GitHub and sends nothing about you.
-
-## Good to know
+## Limitations
 
 - Apps are hidden whole: an app with several icons loses all of them.
 - While anything is hidden, macOS 27 also hides some system icons, like Focus or Now Playing.
-- Hold **Option** while launching to start with every icon visible.
+- Updates install like the first download, and macOS asks for Accessibility again after each one.
+- CapyBar is in beta and relies on a private macOS API. If a macOS update changes it, hiding turns off and every icon stays visible until CapyBar is updated.
 
 ## Uninstall
 
 Right-click the capybara → **Uninstall CapyBar…**. It removes its permission, login item and settings, then moves itself to the Trash.
 
-Deleted it by hand? Run `defaults delete app.capybar.CapyBar` and remove CapyBar from **Privacy & Security → Accessibility**.
+Deleted it by hand? Remove CapyBar from **Privacy & Security → Accessibility** and clear its settings:
+
+```bash
+defaults delete app.capybar.CapyBar
+```
 
 ## FAQ
 
@@ -98,13 +117,12 @@ No. Accessibility is the only permission. The panel shows app icons, not capture
 
 ### macOS says CapyBar can't be opened. What do I do?
 
-CapyBar isn't notarized yet. Click **Done**, then **System Settings → Privacy & Security → Open Anyway**.
+CapyBar isn't notarized yet, so macOS blocks the first launch. See [Install](#install), step 2.
 
-## Where to find what
+## Docs
 
 | I want to… | Read |
 |---|---|
-| Install and use CapyBar | This page |
 | Know how hiding works, and its limits | [How it works](docs/HOW_IT_WORKS.md) |
 | Know why icons stay hidden, or check it myself | [Reliability](docs/RELIABILITY.md) |
 | Know what CapyBar can access | [Security](SECURITY.md) |

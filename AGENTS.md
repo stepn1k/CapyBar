@@ -11,6 +11,7 @@ swift build                                                                  # b
 swift run CapyBarTests                                                       # tests; exit 0 = all passed
 swift format lint --strict --recursive Sources Package.swift scripts/make-icon.swift   # lint, CI fails on any finding
 scripts/bundle.sh --install                                                  # build CapyBar.app into /Applications
+scripts/bundle.sh                                                            # build into ./build only (--zip also packs build/CapyBar.zip)
 ```
 
 ## Where to change what
@@ -31,7 +32,8 @@ scripts/bundle.sh --install                                                  # b
 | Install location, moving into /Applications | `CapyBarCore/InstallLocation.swift`, `CapyBar/AppMover.swift` |
 | Updates, login item, uninstall | `CapyBarCore/UpdateCheck.swift`, `CapyBar/Updater.swift`, `LoginItem.swift`, `Uninstaller.swift` |
 | Tests | `CapyBarTests/<Area>Tests.swift`. Call new test functions from `CapyBarTests/main.swift` |
-| Build, CI, releases | `scripts/bundle.sh`, `scripts/next-version.sh`, `.github/workflows/` |
+| Build, CI, releases | `scripts/bundle.sh`, `scripts/next-version.sh`, `.github/workflows/` ([details](CONTRIBUTING.md#releases)) |
+| App icon | `scripts/make-icon.swift` (compresses with `pngquant` if installed) |
 
 `CapyBarCore` contains no UI. Put logic there so it can be tested with fakes. `CapyBar` holds the AppKit/SwiftUI app.
 
@@ -45,13 +47,13 @@ scripts/bundle.sh --install                                                  # b
 - **Runs only from `/Applications`.** MenuBarAgent resolves bundle IDs through LaunchServices.
 - **Tests never touch the real menu bar.** The private API, Accessibility and clicks are faked.
 - **No default global shortcut.** It would take a combination away from every app.
-- **MIT.** Never copy code from GPL projects (for example Ice).
+- **MIT.** Never copy code from GPL projects (for example Ice). MIT or Apache-2.0 code is fine with attribution.
 
 ## Done checklist
 
 1. Lint, tests and build pass (commands above).
 2. Update the docs that your change makes untrue:
-   - behaviour users see: README "Using it", and the "?" tips in `SettingsView.swift`
+   - behaviour users see: README "Usage" and "Limitations", and the "?" tips in `SettingsView.swift`
    - how hiding works: `docs/HOW_IT_WORKS.md`
    - re-hiding after events: `docs/RELIABILITY.md`, plus `scripts/check-reliability.sh agent` on a real Mac
    - permissions, network or stored data: `SECURITY.md`
@@ -62,5 +64,6 @@ scripts/bundle.sh --install                                                  # b
 
 - Tests are a plain executable using `check()` and `section()` from `TestKit.swift`, because the Command Line Tools ship without XCTest.
 - Builds are ad-hoc signed, so every rebuild needs Accessibility granted again. `bundle.sh --install` removes the stale entry.
-- Logs: `log show --info --last 30m --predicate 'subsystem == "app.capybar.CapyBar"'`. Settings live in `defaults read app.capybar.CapyBar`.
+- Panel keys go through an AppKit key monitor, not SwiftUI focus, because a popover doesn't reliably give SwiftUI focus. `PanelKeyRoute` and `PanelNavigator` hold the logic; the views only draw the state.
+- Logs: `log show --info --last 30m --predicate 'subsystem == "app.capybar.CapyBar" AND process == "CapyBar"'`. Settings live in `defaults read app.capybar.CapyBar`.
 - Hold Option while launching to start with every icon visible.

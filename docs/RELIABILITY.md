@@ -13,21 +13,13 @@ Hidden icons must stay hidden through the things a Mac does every day. CapyBar's
 | A hidden app updates and relaunches | Nothing: apps are hidden by bundle ID | Hidden again the moment it launches; the allowlist doesn't change, so the bar isn't re-laid out |
 | Any request refused or unanswered (3 s) | Every icon is shown (fail-open) | Retries |
 
-Each resend that fails is retried up to 4 times, waiting twice as long each time (about 15 s in all after a restart, 30 s after a failure). Several events at once (waking usually restarts MenuBarAgent too) make one resend. Nothing is resent while nothing hidden is running or while all icons are shown. If every retry fails, CapyBar gives up and the icons stay visible, which is the safe outcome; the next event tries again.
+A resend is tried up to 4 times, waiting twice as long before each retry (about 15 s in all after a restart, 30 s after a failure). Several events at once (waking usually restarts MenuBarAgent too) make one resend. Nothing is resent while nothing hidden is running or while all icons are shown. If every retry fails, CapyBar gives up and the icons stay visible, which is the safe outcome; the next event tries again.
 
 The logic is `RestrictionKeeper` in `Sources/CapyBarCore`; the events are wired up in `CubbyController`.
 
 ## How it's checked
 
-**Automated** (`swift run CapyBarTests`, runs in CI): the system is faked, delays are milliseconds.
-
-- each event leads to exactly one resend, after its delay
-- a refused resend is retried, with growing delays, and stops after the last attempt
-- a reply to an old resend can't schedule a retry over a newer event
-- no resend when nothing hidden runs, when paused, or after cancel
-- with the real `Restriction`: a restart resends the same list; a refusal or a timeout fails open and the retry hides the icons again; exactly one assertion stays alive
-- an app that quits and relaunches (an update) keeps the same allowlist, so nothing is resent
-- a MenuBarAgent that starts after CapyBar counts as a restart
+**Automated** (`swift run CapyBarTests`, runs in CI): `ReliabilityTests` covers every row of the table above with the system faked and delays shortened to milliseconds, including retries, refusals and timeouts that fail open, and a stale reply arriving after a newer event.
 
 **On a real Mac** (`scripts/check-reliability.sh`), with CapyBar in /Applications and a running app hidden:
 
