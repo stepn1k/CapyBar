@@ -35,7 +35,7 @@ Too many icons in the menu bar, and on a MacBook with a notch some end up behind
 You need **macOS 27**.
 
 <!-- download:start -->
-**[Download CapyBar 0.2.0](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip)** · built 2026-11-24
+**[Download CapyBar 0.2.1](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip)** · built 2026-11-24
 <!-- download:end -->
 
 1. Open `CapyBar.zip` and drag **CapyBar.app** into **Applications**.
