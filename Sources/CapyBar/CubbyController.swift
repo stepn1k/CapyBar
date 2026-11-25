@@ -153,6 +153,7 @@ final class CubbyController {
     func panelClosed() {
         navigator.reset()
         notes.panelClosed()
+        refusedHotkey = nil
     }
 
     /// Temporarily shows every icon. Not remembered across launches.
@@ -169,18 +170,32 @@ final class CubbyController {
 
     /// The global shortcut that opens the panel, nil when none is set.
     private(set) var hotkey: KeyCombo?
-    /// Why the last shortcut could not be used; shown under the shortcut setting.
-    private(set) var hotkeyProblem: String?
+    /// A new shortcut macOS just refused. It was an attempt, so it is said until the
+    /// panel closes.
+    private var refusedHotkey: KeyCombo?
+    /// The saved shortcut isn't registered: macOS or another app holds it. Said for as
+    /// long as that holds.
+    private var isSavedHotkeyTaken = false
+    /// Why the shortcut doesn't work; shown under the shortcut setting.
+    var hotkeyProblem: String? {
+        (refusedHotkey ?? (isSavedHotkeyTaken ? hotkey : nil)).map(Self.shortcutTaken)
+    }
+
+    /// Registers the saved shortcut again and remembers whether macOS took it.
+    private func registerSavedHotkey() {
+        isSavedHotkeyTaken = !HotkeyCenter.shared.register(hotkey)
+    }
     /// While the settings record a new shortcut the current one is off, so pressing it
     /// again records it instead of closing the panel.
     var isRecordingHotkey = false {
         didSet {
             guard isRecordingHotkey != oldValue else { return }
             if isRecordingHotkey {
-                hotkeyProblem = nil
+                refusedHotkey = nil
+                isSavedHotkeyTaken = false
                 HotkeyCenter.shared.unregister()
             } else {
-                HotkeyCenter.shared.register(hotkey)
+                registerSavedHotkey()
             }
         }
     }
@@ -326,9 +341,7 @@ final class CubbyController {
         }
         watchSleepAndSessions()
         // A shortcut another app took meanwhile is kept, so it works again once freed.
-        if let hotkey, !HotkeyCenter.shared.register(hotkey) {
-            hotkeyProblem = Self.shortcutTaken(hotkey)
-        }
+        if hotkey != nil { registerSavedHotkey() }
         // Apps launched at login before CapyBar and never seen: check them like new ones.
         considerNewApps(running.subtracting(known))
         apply()
@@ -385,12 +398,13 @@ final class CubbyController {
         isRecordingHotkey = false
         guard combo != hotkey else { return }
         if let combo, !HotkeyCenter.shared.register(combo) {
-            hotkeyProblem = Self.shortcutTaken(combo)
-            HotkeyCenter.shared.register(hotkey)
+            refusedHotkey = combo
+            registerSavedHotkey()
             return
         }
         if combo == nil { HotkeyCenter.shared.unregister() }
-        hotkeyProblem = nil
+        refusedHotkey = nil
+        isSavedHotkeyTaken = false
         hotkey = combo
         prefs.hotkey = combo
         onHotkeyChange?()
