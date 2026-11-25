@@ -63,6 +63,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         HotkeyCenter.shared.onPress = { [weak self] in self?.hotkeyPressed() }
         controller.takeKeyboard = { [weak self] in self?.takeKeyboard() }
         controller.closePanel = { [weak self] in self?.popover.performClose(nil) }
+        controller.showPanel = { [weak self] in self?.showReason() }
         controller.onHotkeyChange = { [weak self] in self?.updateToolTip() }
         updateToolTip()
 
@@ -175,8 +176,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     }
 
     /// Opens the panel, on the app list when asked to or when nothing is hidden yet. It
-    /// always takes the keyboard, so typing searches however it was opened; from the
-    /// shortcut the first icon is also selected.
+    /// takes the keyboard, so typing searches however it was opened; from the shortcut
+    /// the first icon is also selected.
     func showPanel(withSettings: Bool = false, fromKeyboard: Bool = false) {
         controller.refreshItems()
         Updater.shared.checkIfDue()
@@ -186,6 +187,23 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         outsideClicks?.start()
         takeKeyboard()
+    }
+
+    /// Brings the panel back to say why a click on an icon failed. It leaves the keyboard
+    /// with whatever app the user is in by now, and a click anywhere else closes it. One
+    /// turn of the run loop later, so the close that the click caused has fully ended;
+    /// if the panel is open again by then, the reason is already on screen.
+    private func showReason() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !popover.isShown, let button = statusItem.button else { return }
+            // A click into the panel makes CapyBar active; its close then hands the
+            // keyboard back to this app.
+            let front = NSWorkspace.shared.frontmostApplication
+            previousApp = front?.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : front
+            controller.panelOpened(fromKeyboard: false)
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            outsideClicks?.start()
+        }
     }
 
     @objc private func clicked(_ sender: NSStatusBarButton) {

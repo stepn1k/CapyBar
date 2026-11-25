@@ -47,6 +47,9 @@ final class CubbyController {
     static let launchDebounce: Duration = .milliseconds(500)
     /// How long a revealed app that was never laid out may take to publish its icons.
     static let revealTimeout: TimeInterval = 1.5
+    /// A click on an icon that fails this soon brings the panel back with the reason.
+    /// Later, the user has likely moved on, and the reason waits for the next opening.
+    static let failureReopenWindow: Duration = .seconds(5)
 
     // Derived lists are rebuilt only when their inputs change, never per SwiftUI render.
     private(set) var appEntries: [AppEntry] = []
@@ -75,6 +78,8 @@ final class CubbyController {
     @ObservationIgnored var takeKeyboard: (() -> Void)?
     /// Closes the panel (set by the status item).
     @ObservationIgnored var closePanel: (() -> Void)?
+    /// Opens the panel (set by the status item), to show why a click on an icon failed.
+    @ObservationIgnored var showPanel: (() -> Void)?
     /// Called when the shortcut changes, so the status item's tooltip can show it.
     @ObservationIgnored var onHotkeyChange: (() -> Void)?
 
@@ -226,6 +231,8 @@ final class CubbyController {
     /// meanwhile does not queue behind it.
     @ObservationIgnored private let revealQueue = DispatchQueue(label: "app.capybar.reveal", qos: .userInitiated)
     @ObservationIgnored private var runningCheckScheduled = false
+    /// When the user last clicked an icon in the panel.
+    @ObservationIgnored private var lastClick = ContinuousClock.Instant.now
     @ObservationIgnored private var askedForAccessibility = false
     @ObservationIgnored private var trustObserver: NSObjectProtocol?
     @ObservationIgnored private var agentWatch = MenuBarAgentWatch(currentPID: nil)
@@ -755,6 +762,8 @@ final class CubbyController {
     /// Starts a hidden app that is not running; its icon then waits in the cubby.
     func launch(_ bundleID: String) {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            // Not brought back at once: the panel has only just closed and CapyBar may still
+            // be active, which could close a panel shown now before it is seen.
             notes.post(.app(bundleID: bundleID, text: "Couldn’t find \(bundleID)."))
             return
         }
@@ -764,7 +773,7 @@ final class CubbyController {
             guard let error else { return }
             let text = error.localizedDescription
             Task { @MainActor [weak self] in
-                self?.notes.post(.app(bundleID: bundleID, text: "Couldn’t open the app: \(text)"))
+                self?.reportClickFailure(bundleID, "Couldn’t open the app: \(text)")
             }
         }
     }
@@ -773,6 +782,7 @@ final class CubbyController {
 
     /// What a click on a panel entry does.
     func open(_ entry: PanelEntry) {
+        lastClick = .now
         if let item = entry.item {
             open(item)
         } else if let pid = entry.pid {
@@ -823,7 +833,7 @@ final class CubbyController {
                                 isDockApp
                                 ? "\(name) has no menu bar icon."
                                 : "Couldn’t find the menu bar icon of \(name)."
-                            notes.post(.app(bundleID: bundleID, text: text))
+                            reportClickFailure(bundleID, text)
                         }
                         rebuildEntries()
                         return
@@ -874,10 +884,17 @@ final class CubbyController {
                 } else {
                     "not enough room in the menu bar"
                 }
-            notes.post(.app(bundleID: item.bundleID, text: "Couldn’t open the menu of \(name): \(reason)."))
+            reportClickFailure(item.bundleID, "Couldn’t open the menu of \(name): \(reason).")
         case .noResponse:
-            notes.post(.app(bundleID: item.bundleID, text: "\(Self.appName(item.bundleID)) isn’t responding."))
+            reportClickFailure(item.bundleID, "\(Self.appName(item.bundleID)) isn’t responding.")
         }
+    }
+
+    /// Why a click on an icon failed. The click closed the panel, so soon after it the
+    /// panel comes back to say why; later, the reason waits for the next opening.
+    private func reportClickFailure(_ bundleID: String, _ text: String) {
+        notes.post(.app(bundleID: bundleID, text: text))
+        if ContinuousClock.now - lastClick < Self.failureReopenWindow { showPanel?() }
     }
 
     /// Name and icon from the app's bundle on disk; a deleted app shows its bundle ID.
