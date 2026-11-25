@@ -28,6 +28,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         var close: (() -> Void)?
         openEntry = { entry in
             close?()
+            // Mark the panel closed now: AppKit may report the close after `open` has
+            // already posted why it failed, which must wait for the panel, not vanish.
+            controller.panelClosed()
             controller.open(entry)
         }
         super.init()
@@ -51,7 +54,12 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.animates = false
         popover.delegate = self
 
-        controller.onTrustGranted = { [weak self] in self?.showPanel(withSettings: true) }
+        controller.onTrustGranted = { [weak self] in
+            guard let self else { return }
+            // An open panel now shows its notes instead of the request: they are seen.
+            if popover.isShown { controller.panelOpened(fromKeyboard: false) }
+            showPanel(withSettings: true)
+        }
         HotkeyCenter.shared.onPress = { [weak self] in self?.hotkeyPressed() }
         controller.takeKeyboard = { [weak self] in self?.takeKeyboard() }
         controller.closePanel = { [weak self] in self?.popover.performClose(nil) }
@@ -83,7 +91,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         stopKeyMonitor()
         lastClose = Date()
         controller.showsSettings = false
-        controller.resetPanelKeyboard()
+        controller.panelClosed()
         controller.isRecordingHotkey = false
         giveKeyboardBack()
     }

@@ -21,8 +21,9 @@ struct PanelView: View {
                     readyContent.frame(maxWidth: .infinity, alignment: .leading)
                     GearButton(controller: controller)
                 }
-                if let message = controller.message ?? controller.installMessage {
-                    Text(message)
+                // What holds right now first, then the latest news (gone once the panel closes).
+                ForEach(lines, id: \.self) { line in
+                    Text(line)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -45,7 +46,12 @@ struct PanelView: View {
         .frame(width: 300)
     }
 
-    private var isReady: Bool { controller.isRestrictionAvailable && controller.isTrusted }
+    private var isReady: Bool { controller.isReady }
+
+    private var lines: [String] {
+        let problems = [controller.installMessage, controller.hidingProblem].compactMap { $0 }
+        return problems + controller.notes.lines.filter { !problems.contains($0) }
+    }
 
     private var isSearchFieldShown: Bool {
         !controller.isPaused && !controller.panelEntries.isEmpty && controller.navigator.isSearchFieldOpen

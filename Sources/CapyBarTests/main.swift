@@ -12,6 +12,7 @@ updateTests()
 keyComboTests()
 panelSearchTests()
 keyboardTests()
+panelNotesTests()
 await restrictionTests()
 await reliabilityTests()
 

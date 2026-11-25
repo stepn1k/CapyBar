@@ -57,7 +57,11 @@ final class CubbyController {
     private(set) var isBusy = false
     /// A move to /Applications started from the panel is under way.
     private(set) var isMoving = false
-    private(set) var message: String?
+    /// The last thing that happened, until the panel has shown it (see `PanelNotes`).
+    private(set) var notes = PanelNotes()
+    /// Why hiding doesn't work right now. Unlike a note it stays while it holds, and
+    /// goes once hiding works again or nothing needs hiding.
+    private(set) var hidingProblem: String?
     private(set) var isTrusted = MenuBarScanner.isTrusted
     /// On while registered, also when macOS still waits for the user's approval.
     private(set) var opensAtLogin = false
@@ -138,18 +142,27 @@ final class CubbyController {
     /// at once.
     func panelOpened(fromKeyboard: Bool) {
         if fromKeyboard { navigator.beginKeyboardUse() }
+        // Before Accessibility is granted the panel shows the request instead of notes.
+        notes.panelOpened(showsNotes: isReady)
     }
 
-    /// The panel closed.
-    func resetPanelKeyboard() {
+    /// The panel can show the icons and the notes under them.
+    var isReady: Bool { isRestrictionAvailable && isTrusted }
+
+    /// The panel closed: what it showed has been seen. Safe to call more than once.
+    func panelClosed() {
         navigator.reset()
+        notes.panelClosed()
     }
 
     /// Temporarily shows every icon. Not remembered across launches.
     var isPaused = false {
         didSet {
             guard isPaused != oldValue else { return }
-            if isPaused { keeper.cancel() }
+            if isPaused {
+                keeper.cancel()
+                notes.everythingShown()
+            }
             apply()
         }
     }
@@ -247,8 +260,8 @@ final class CubbyController {
         return problem
     }
 
-    /// Why hiding is off because of where CapyBar runs. Kept apart from `message`, which
-    /// other events replace, so it never goes away while it holds.
+    /// Why hiding is off because of where CapyBar runs. Kept apart from `notes`, which
+    /// go once seen, so it never goes away while it holds.
     var installMessage: String? {
         switch installProblem {
         case .outsideApplications:
@@ -343,7 +356,7 @@ final class CubbyController {
         isMoving = true
         if let failure = AppMover.moveAndRelaunch(bundleID: ownID) {
             isMoving = false
-            message = failure.message
+            notes.post(.general(failure.message))
         } else {
             NSApp.terminate(nil)
         }
@@ -351,7 +364,7 @@ final class CubbyController {
 
     /// Shown when the automatic move at launch did not work.
     func reportMoveFailure(_ text: String) {
-        message = text
+        notes.post(.general(text))
     }
 
     func stop() {
@@ -409,12 +422,13 @@ final class CubbyController {
     private func runningAppsChanged() {
         let running = runningBundleIDs
         let launched = running.subtracting(lastRunning)
-        let quit = !lastRunning.subtracting(running).isEmpty
+        let quit = lastRunning.subtracting(running)
         lastRunning = running
+        if !quit.isEmpty { notes.appsQuit(quit) }
         if !launched.isEmpty {
             considerNewApps(launched)
             apply()
-        } else if quit {
+        } else if !quit.isEmpty {
             appTerminated()
         }
     }
@@ -460,7 +474,7 @@ final class CubbyController {
 
     func setOpensAtLogin(_ isOn: Bool) {
         if let error = LoginItem.set(isOn) {
-            message = "Couldn’t change Open at Login: \(error)"
+            notes.post(.general("Couldn’t change Open at Login: \(error)"))
         }
         refreshLoginItem()
     }
@@ -514,17 +528,14 @@ final class CubbyController {
         let running = runningBundleIDs
         guard wantsRestriction(running: running) else {
             restriction.clear()
+            hidingProblem = nil  // nothing to hide, so nothing refused
             completion(nil)
             return
         }
         let allowed = Allowlist.compute(
             running: running, known: known, hidden: hidden, revealed: revealed, ownBundleID: ownID)
         restriction.apply(allowing: allowed, force: force) { [weak self] failure in
-            if let failure {
-                self?.message = Self.describe(failure)
-            } else if let self, let message, Self.restrictionMessages.contains(message) {
-                self.message = nil  // an earlier failure no longer holds
-            }
+            self?.hidingProblem = failure.map(Self.describe)
             completion(failure)
         }
     }
@@ -547,6 +558,7 @@ final class CubbyController {
         prefs.hidden = hidden
         // Hiding it again gives an app marked iconless another chance in the cubby.
         if iconless.remove(bundleID) != nil { prefs.iconless = iconless }
+        notes.appToggled(bundleID)
         rebuildEntries()
         apply()
     }
@@ -598,7 +610,7 @@ final class CubbyController {
         guard hideNewApps, !toHide.isEmpty else { return }
         hidden.formUnion(toHide)
         prefs.hidden = hidden
-        message = "Now hidden: \(toHide.map(Self.appName).sorted().joined(separator: ", "))."
+        notes.postNewlyHidden(Dictionary(uniqueKeysWithValues: toHide.map { ($0, Self.appName($0)) }))
         rebuildEntries()
         apply()
     }
@@ -609,6 +621,7 @@ final class CubbyController {
         let running = runningBundleIDs
         if !Allowlist.needsRestriction(running: running, hidden: hidden, revealed: revealed, ownBundleID: ownID) {
             restriction.clear()
+            hidingProblem = nil
         }
     }
 
@@ -728,15 +741,17 @@ final class CubbyController {
     /// Starts a hidden app that is not running; its icon then waits in the cubby.
     func launch(_ bundleID: String) {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
-            message = "Couldn’t find \(bundleID)."
+            notes.post(.app(bundleID: bundleID, text: "Couldn’t find \(bundleID)."))
             return
         }
-        message = nil
+        notes.clearReport()
         NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) {
             _, error in
             guard let error else { return }
             let text = error.localizedDescription
-            Task { @MainActor [weak self] in self?.message = "Couldn’t open the app: \(text)" }
+            Task { @MainActor [weak self] in
+                self?.notes.post(.app(bundleID: bundleID, text: "Couldn’t open the app: \(text)"))
+            }
         }
     }
 
@@ -758,7 +773,7 @@ final class CubbyController {
     private func openUnscanned(bundleID: String, pid: pid_t) {
         guard !isBusy else { return }
         guard isTrusted else {
-            message = "CapyBar needs Accessibility permission."
+            notes.post(.general("CapyBar needs Accessibility permission."))
             return
         }
         // The entry may be older than the last quit; never read another process's items
@@ -768,7 +783,7 @@ final class CubbyController {
             return
         }
         isBusy = true
-        message = nil
+        notes.clearReport()
         revealed.insert(bundleID)
         let timeout = Self.revealTimeout
         apply { [weak self] in
@@ -789,14 +804,12 @@ final class CubbyController {
                                 iconless.insert(bundleID)
                                 prefs.iconless = iconless
                             }
-                            // Keep a failure `apply` reported: it is the real cause.
-                            if message == nil {
-                                let name = Self.appName(bundleID)
-                                message =
-                                    isDockApp
-                                    ? "\(name) has no menu bar icon."
-                                    : "Couldn’t find the menu bar icon of \(name)."
-                            }
+                            let name = Self.appName(bundleID)
+                            let text =
+                                isDockApp
+                                ? "\(name) has no menu bar icon."
+                                : "Couldn’t find the menu bar icon of \(name)."
+                            notes.post(.app(bundleID: bundleID, text: text))
                         }
                         rebuildEntries()
                         return
@@ -817,11 +830,11 @@ final class CubbyController {
     func open(_ item: MenuBarItem) {
         guard !isBusy else { return }
         guard isTrusted else {
-            message = "CapyBar needs Accessibility permission."
+            notes.post(.general("CapyBar needs Accessibility permission."))
             return
         }
         isBusy = true
-        message = nil
+        notes.clearReport()
         revealed.insert(item.bundleID)
         apply { [weak self] in
             guard let self else { return }
@@ -841,13 +854,15 @@ final class CubbyController {
         case .notDrawn:
             let app = NSRunningApplication(processIdentifier: item.pid)
             let name = Self.appName(item.bundleID)
-            if let app, !Self.isResolvedCopy(bundleID: item.bundleID, at: app.bundleURL) {
-                message = "Couldn’t open the menu of \(name): the app isn’t running from the Applications folder."
-            } else {
-                message = "Couldn’t open the menu of \(name): not enough room in the menu bar."
-            }
+            let reason =
+                if let app, !Self.isResolvedCopy(bundleID: item.bundleID, at: app.bundleURL) {
+                    "the app isn’t running from the Applications folder"
+                } else {
+                    "not enough room in the menu bar"
+                }
+            notes.post(.app(bundleID: item.bundleID, text: "Couldn’t open the menu of \(name): \(reason)."))
         case .noResponse:
-            message = "\(Self.appName(item.bundleID)) isn’t responding."
+            notes.post(.app(bundleID: item.bundleID, text: "\(Self.appName(item.bundleID)) isn’t responding."))
         }
     }
 
@@ -879,6 +894,4 @@ final class CubbyController {
         case .rejected: "Couldn’t hide icons."
         }
     }
-
-    private static let restrictionMessages: Set<String> = [describe(.unavailable), describe(.rejected(""))]
 }
