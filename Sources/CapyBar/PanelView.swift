@@ -98,7 +98,7 @@ struct PanelView: View {
     }
 }
 
-/// Settings, beside the icons. A small spinner sits under it while scanning.
+/// Settings, beside the icons. A small spinner sits under it while an icon opens.
 private struct GearButton: View {
     let controller: CubbyController
 
@@ -118,7 +118,10 @@ private struct GearButton: View {
             .help(controller.showsSettings ? "Close settings" : "Settings")
             .accessibilityLabel("Settings")
             .accessibilityValue(controller.showsSettings ? "Open" : "Closed")
-            if controller.isScanning || controller.isBusy {
+            // Not for scanning: every open rescans, and a spinner that comes and goes
+            // with it would stretch a one-row panel for a moment. An empty cubby says
+            // "Looking for icons…" instead.
+            if controller.isBusy {
                 ProgressView().controlSize(.mini)
             }
         }
