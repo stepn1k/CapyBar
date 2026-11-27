@@ -74,7 +74,7 @@ No. Accessibility is the only permission.
 
 ### Why do hidden icons show while Notification Center is open?
 
-macOS 27 puts tight limits on what apps can do with the menu bar, and while icons are hidden it blocks Notification Center. Showing them while it is open is the only way to keep it working. If you'd rather keep them hidden, turn off Clock opens Notification Center in Options; a two-finger swipe from the right edge of the trackpad still opens it.
+macOS 27 puts tight limits on what apps can do with the menu bar, and while icons are hidden it blocks Notification Center. Showing them while it is open is the only way to keep it working. A two-finger swipe from the right edge of the trackpad opens it without showing them.
 
 ### Why did Focus or Now Playing disappear from the menu bar?
 

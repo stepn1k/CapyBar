@@ -16,7 +16,6 @@ public final class Preferences {
         package static let iconless = "iconlessBundleIDs"
         package static let hotkey = "hotkey"
         package static let showsVPNStatus = "showsVPNStatus"
-        package static let clockOpensNotificationCenter = "clockOpensNotificationCenter"
     }
 
     /// Upper bounds so a corrupted or hand-edited plist cannot blow up memory or the
@@ -29,7 +28,7 @@ public final class Preferences {
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         defaults.register(defaults: [
-            Key.hideNewApps: true, Key.showsVPNStatus: true, Key.clockOpensNotificationCenter: true,
+            Key.hideNewApps: true, Key.showsVPNStatus: true,
         ])
     }
 
@@ -38,13 +37,6 @@ public final class Preferences {
     public var showsVPNStatus: Bool {
         get { defaults.bool(forKey: Key.showsVPNStatus) }
         set { defaults.set(newValue, forKey: Key.showsVPNStatus) }
-    }
-
-    /// A click on the clock opens Notification Center while icons are hidden (macOS
-    /// ignores it otherwise). On by default: it is what the clock does without CapyBar.
-    public var clockOpensNotificationCenter: Bool {
-        get { defaults.bool(forKey: Key.clockOpensNotificationCenter) }
-        set { defaults.set(newValue, forKey: Key.clockOpensNotificationCenter) }
     }
 
     public var hidden: Set<String> {

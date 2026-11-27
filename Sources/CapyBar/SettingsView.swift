@@ -60,15 +60,6 @@ struct SettingsSection: View {
                     Text("Keep apps that aren’t running")
                 }
                 .help("Keep hidden apps that aren’t running in this panel, greyed out; click one to open it")
-                CardDivider()
-                SwitchRow(isOn: $controller.clockOpensNotificationCenter) {
-                    Text("Clock opens Notification Center")
-                }
-                .help(
-                    """
-                    macOS blocks Notification Center while icons are hidden, so hidden icons \
-                    show while it is open.
-                    """)
             }
             OptionGroup("Panel") {
                 ShortcutRow(controller: controller)

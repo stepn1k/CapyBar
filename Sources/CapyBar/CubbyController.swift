@@ -110,15 +110,6 @@ final class CubbyController {
         }
     }
 
-    /// A click on the clock opens Notification Center while icons are hidden.
-    var clockOpensNotificationCenter: Bool {
-        didSet {
-            guard clockOpensNotificationCenter != oldValue else { return }
-            prefs.clockOpensNotificationCenter = clockOpensNotificationCenter
-            updateClockBridge()
-        }
-    }
-
     /// The VPN to show; nil when none is set up or showing it is off.
     private(set) var vpn: VPNStatus?
     /// Called when `vpn` changes, so the status item can redraw the capybara.
@@ -303,7 +294,6 @@ final class CubbyController {
         hideNewApps = prefs.hideNewApps
         showsNotRunningApps = prefs.showsNotRunningApps
         showsVPNStatus = prefs.showsVPNStatus
-        clockOpensNotificationCenter = prefs.clockOpensNotificationCenter
         hotkey = prefs.hotkey
         ownID = Bundle.main.bundleIdentifier ?? ""
         installProblem = Self.findInstallProblem(bundleID: ownID)
@@ -654,10 +644,10 @@ final class CubbyController {
 
     // MARK: - Clock
 
-    /// Clicks are watched only while a restriction is held (or lifted for a click) and
-    /// the setting is on: without a restriction the clock works by itself.
+    /// Clicks are watched only while a restriction is held (or lifted for a click):
+    /// without one the clock works by itself.
     private func updateClockBridge() {
-        if clockOpensNotificationCenter, isTrusted, restriction.allowed != nil || restriction.isSuspended {
+        if isTrusted, restriction.allowed != nil || restriction.isSuspended {
             clockBridge.arm()
         } else {
             clockBridge.disarm()

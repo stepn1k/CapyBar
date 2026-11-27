@@ -481,11 +481,4 @@ func clockRestrictionTests() {
         restriction.resume(completion: resumed.record)
         check(resumed.results == [.unavailable] && !restriction.isSuspended, "resume without MenuBarAgent fails open")
     }
-    do {
-        let defaults = UserDefaults(suiteName: "capybar.tests.clock")!
-        defaults.removePersistentDomain(forName: "capybar.tests.clock")
-        check(
-            Preferences(defaults: defaults).clockOpensNotificationCenter,
-            "the clock opens Notification Center by default")
-    }
 }
