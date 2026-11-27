@@ -66,9 +66,8 @@ struct SettingsSection: View {
                 }
                 .help(
                     """
-                    macOS ignores clicks on the clock while icons are hidden. CapyBar holds your \
-                    click for a moment, then lets it through and shows hidden icons until \
-                    Notification Center closes, as macOS does without CapyBar.
+                    macOS blocks Notification Center while icons are hidden, so hidden icons \
+                    show while it is open.
                     """)
             }
             OptionGroup("Panel") {
