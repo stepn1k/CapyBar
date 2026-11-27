@@ -110,13 +110,13 @@ public enum MenuBarScanner {
 
     // MARK: - Typed attribute reads (CF type IDs checked: another app controls the values)
 
-    private static func rawAttribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
+    static func rawAttribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
         return value
     }
 
-    private static func elementAttribute(_ element: AXUIElement, _ name: String) -> AXUIElement? {
+    static func elementAttribute(_ element: AXUIElement, _ name: String) -> AXUIElement? {
         guard let value = rawAttribute(element, name), CFGetTypeID(value) == AXUIElementGetTypeID() else {
             return nil
         }
@@ -128,11 +128,11 @@ public enum MenuBarScanner {
         return unsafeDowncast(value, to: AXValue.self)
     }
 
-    private static func stringAttribute(_ element: AXUIElement, _ name: String) -> String? {
+    static func stringAttribute(_ element: AXUIElement, _ name: String) -> String? {
         rawAttribute(element, name) as? String
     }
 
-    private static func elementsAttribute(_ element: AXUIElement, _ name: String) -> [AXUIElement] {
+    static func elementsAttribute(_ element: AXUIElement, _ name: String) -> [AXUIElement] {
         guard let value = rawAttribute(element, name), CFGetTypeID(value) == CFArrayGetTypeID(),
             let array = value as? [CFTypeRef]
         else { return [] }

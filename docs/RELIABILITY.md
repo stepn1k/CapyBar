@@ -12,6 +12,7 @@ Hidden icons must stay hidden through the things a Mac does every day. CapyBar's
 | Restart and login | CapyBar can start before MenuBarAgent accepts requests | A refused or unanswered request is retried |
 | A hidden app updates and relaunches | Nothing: apps are hidden by bundle ID | Hidden again the moment it launches; the allowlist doesn't change, so the bar isn't re-laid out |
 | Any request refused or unanswered (3 s) | Every icon is shown (fail-open) | Retries |
+| A click on the clock | CapyBar itself, while Notification Center is open, so macOS takes the click | Sends the restriction again once Notification Center closes (and a menu opened meanwhile from the bar), or if it opens nothing; at the latest after 11 minutes. Resends asked for meanwhile wait and go out with it |
 
 A resend is tried up to 4 times, waiting twice as long before each retry (about 15 s in all after a restart, 30 s after a failure). Several events at once (waking usually restarts MenuBarAgent too) make one resend. Nothing is resent while nothing hidden is running or while all icons are shown. If every retry fails, CapyBar gives up and the icons stay visible, which is the safe outcome; the next event tries again.
 

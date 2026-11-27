@@ -27,7 +27,9 @@ public final class Preferences {
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        defaults.register(defaults: [Key.hideNewApps: true, Key.showsVPNStatus: true])
+        defaults.register(defaults: [
+            Key.hideNewApps: true, Key.showsVPNStatus: true,
+        ])
     }
 
     /// A shield on the capybara while a VPN is connected, and the VPN's row in the panel.

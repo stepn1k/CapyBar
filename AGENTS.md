@@ -25,6 +25,7 @@ scripts/bundle.sh                                                            # b
 | Opening a hidden icon's menu | `CapyBarCore/ItemPresser.swift` |
 | Panel keys and search | `CapyBarCore/PanelNavigator.swift`, `PanelSearch.swift`; key monitor in `CapyBar/StatusItemController.swift` |
 | VPN status (shield on the capybara, VPN row in the panel) | `CapyBarCore/NetworkWatch.swift`, `VPNStatus.swift`; wired in `CapyBar/CubbyController.swift` (VPN section), drawn in `StatusItemController.swift`, `CapybaraIcon.swift`, `PanelView.swift` |
+| Clicking the clock while icons are hidden (opens Notification Center) | `CapyBarCore/ClockBridge.swift` (`ClockGate` decides which clicks the tap holds, `ClockEngine` runs a session), lift and resume in `Restriction.swift`; wired in `CapyBar/CubbyController.swift` (Clock section) |
 | Global shortcut | `CapyBar/HotkeyCenter.swift`, `CapyBarCore/KeyCombo.swift` |
 | Stored settings | `CapyBarCore/Preferences.swift` |
 | App state, glue between all of the above | `CapyBar/CubbyController.swift` |
@@ -42,9 +43,9 @@ scripts/bundle.sh                                                            # b
 
 - **Fail open.** If CapyBar quits, crashes or hits an error, every icon shows again. Never add a state that can leave icons hidden without CapyBar running.
 - **Private API is checked first.** `MenuBarClientCore` is loaded at runtime and validated before the first call. If it is missing or changed, the feature turns off.
-- **One permission.** Accessibility only. No Screen Recording, no Input Monitoring. The global shortcut uses Carbon `RegisterEventHotKey`, which sees only its own combination.
+- **One permission.** Accessibility only. No Screen Recording, no Input Monitoring. The global shortcut uses Carbon `RegisterEventHotKey`, which sees only its own combination. The clock's event tap is an active one (it holds clicks), which Accessibility covers; a listen-only tap would need Input Monitoring.
 - **No network** except the opt-in update check (`version.json` from the latest GitHub release). No analytics, no accounts.
-- **Event-driven.** No repeating timers. React to app launches, wake, MenuBarAgent restarts and user actions.
+- **Event-driven.** No repeating timers. React to app launches, wake, MenuBarAgent restarts and user actions. The one exception is short polling while something the user opened is on screen (an icon's menu, Notification Center from the clock), which stops by itself.
 - **Runs only from `/Applications`.** MenuBarAgent resolves bundle IDs through LaunchServices.
 - **Tests never touch the real menu bar.** The private API, Accessibility and clicks are faked.
 - **No default global shortcut.** It would take a combination away from every app.
