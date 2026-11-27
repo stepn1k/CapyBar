@@ -45,7 +45,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         }
 
         let panel = NSHostingController(
-            rootView: PanelView(controller: controller, open: openEntry))
+            rootView: PanelView(
+                controller: controller, open: openEntry, openVPN: { [weak self] in self?.openVPN() }))
         // Without this NSPopover lays itself out for its default 320×320 content and keeps
         // the bottom edge when SwiftUI shrinks it, so the panel hangs far below the icon.
         panel.sizingOptions = [.preferredContentSize]
@@ -65,7 +66,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         controller.closePanel = { [weak self] in self?.popover.performClose(nil) }
         controller.showPanel = { [weak self] in self?.showReason() }
         controller.onHotkeyChange = { [weak self] in self?.updateToolTip() }
-        updateToolTip()
+        controller.onVPNChange = { [weak self] in self?.vpnChanged() }
+        vpnChanged()
 
         outsideClicks = OutsideClickWatcher(
             insideFrames: { [weak self] in
@@ -159,9 +161,25 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         }
     }
 
-    /// Hovering the capybara reminds of the shortcut.
+    /// Hovering the capybara reminds of the shortcut, and names the VPN while one is on.
     private func updateToolTip() {
-        statusItem.button?.toolTip = controller.hotkey.map { "CapyBar (\($0.displayString))" } ?? "CapyBar"
+        var tip = controller.hotkey.map { "CapyBar (\($0.displayString))" } ?? "CapyBar"
+        if let vpn = controller.vpn, vpn.isConnected { tip += "\n\(vpn.name) connected" }
+        statusItem.button?.toolTip = tip
+    }
+
+    private func vpnChanged() {
+        let isConnected = controller.vpn?.isConnected == true
+        icon?.shield = isConnected
+        statusItem.button?.setAccessibilityValue(isConnected ? "VPN connected" : nil)
+        updateToolTip()
+    }
+
+    /// The VPN row in the panel: like an icon, it closes the panel and opens the menu.
+    private func openVPN() {
+        popover.performClose(nil)
+        controller.panelClosed()
+        controller.openVPNApp()
     }
 
     /// CapyBar runs in the background, so its panel gets no keystrokes until it is

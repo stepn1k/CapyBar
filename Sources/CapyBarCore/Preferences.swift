@@ -15,6 +15,7 @@ public final class Preferences {
         package static let lastUpdateCheck = "lastUpdateCheck"
         package static let iconless = "iconlessBundleIDs"
         package static let hotkey = "hotkey"
+        package static let showsVPNStatus = "showsVPNStatus"
     }
 
     /// Upper bounds so a corrupted or hand-edited plist cannot blow up memory or the
@@ -26,7 +27,14 @@ public final class Preferences {
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        defaults.register(defaults: [Key.hideNewApps: true])
+        defaults.register(defaults: [Key.hideNewApps: true, Key.showsVPNStatus: true])
+    }
+
+    /// A shield on the capybara while a VPN is connected, and the VPN's row in the panel.
+    /// On by default: without a VPN set up it shows nothing.
+    public var showsVPNStatus: Bool {
+        get { defaults.bool(forKey: Key.showsVPNStatus) }
+        set { defaults.set(newValue, forKey: Key.showsVPNStatus) }
     }
 
     public var hidden: Set<String> {

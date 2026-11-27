@@ -13,7 +13,7 @@ struct SettingsSection: View {
     private static let maxListHeight: CGFloat = 240
     /// Rough height of the Options card; the taller tab sets the area's height, so
     /// switching tabs does not make the panel jump.
-    private static let optionsHeight: CGFloat = 150
+    private static let optionsHeight: CGFloat = 178
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -60,6 +60,15 @@ struct SettingsSection: View {
                 Text("Hide new apps automatically")
             }
             .help("Hide a newly installed app’s icon the first time it appears")
+            CardDivider()
+            SwitchRow(isOn: $controller.showsVPNStatus) {
+                Text("Show VPN status")
+            }
+            .help(
+                """
+                Add a shield to the capybara while a VPN is connected, and a row above the \
+                icons that opens the VPN app’s menu. CapyBar reads this from macOS; nothing is sent.
+                """)
             CardDivider()
             ShortcutRow(controller: controller)
             CardDivider()

@@ -3,9 +3,10 @@ import QuartzCore
 
 /// A capybara standing three-quarters on, drawn in code so it stays sharp at any scale.
 /// `turn` swings the head from profile, looking left (0), to facing the viewer (1);
-/// `blink` closes the eyes (1 = shut).
+/// `blink` closes the eyes (1 = shut); `shield` adds a checked shield badge on the
+/// capybara's back, cut out of it the way SF Symbols badge a glyph.
 enum CapybaraIcon {
-    static func image(turn: CGFloat = 0, blink: CGFloat = 0) -> NSImage {
+    static func image(turn: CGFloat = 0, blink: CGFloat = 0, shield: Bool = false) -> NSImage {
         func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x, y: y) }
         func mix(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat { a + (b - a) * t }
         func oval(_ x: CGFloat, _ y: CGFloat, _ rx: CGFloat, _ ry: CGFloat) -> NSBezierPath {
@@ -53,11 +54,53 @@ enum CapybaraIcon {
             let nostril = mix(0.45, 0.42, t)
             oval(mix(2.35, 4.9, t), mix(6.85, 9.6, t), nostril, nostril).fill()
             oval(mix(5.8, 6.7, far), 9.6, 0.42 * far, 0.42 * far).fill()
+
+            if shield {
+                // A 1 pt knockout around the badge, the smallest gap that survives 1x.
+                let badge = shieldPath(in: badgeRect)
+                badge.lineWidth = 2
+                badge.lineJoinStyle = .round
+                badge.fill()
+                badge.stroke()
+                NSGraphicsContext.current?.compositingOperation = .sourceOver
+                badge.fill()
+                NSGraphicsContext.current?.compositingOperation = .destinationOut
+                let r = badgeRect
+                let check = NSBezierPath()
+                check.move(to: point(r.minX + 0.27 * r.width, r.minY + 0.5 * r.height))
+                check.line(to: point(r.minX + 0.44 * r.width, r.minY + 0.67 * r.height))
+                check.line(to: point(r.minX + 0.75 * r.width, r.minY + 0.33 * r.height))
+                check.lineWidth = 1.25
+                check.lineCapStyle = .round
+                check.lineJoinStyle = .round
+                check.stroke()
+            }
             return true
         }
         image.isTemplate = true
         image.accessibilityDescription = "CapyBar"
         return image
+    }
+
+    /// Top-trailing, on the capybara's back and inside its 20 pt canvas, clear of the head in
+    /// every pose. Half-point edges sit on the Retina pixel grid.
+    private static let badgeRect = NSRect(x: 12.5, y: 2.5, width: 6.8, height: 8.5)
+
+    /// A heater shield: a gently arched top, straight sides, and a rounded point.
+    private static func shieldPath(in r: NSRect) -> NSBezierPath {
+        func at(_ fx: CGFloat, _ fy: CGFloat) -> NSPoint {
+            NSPoint(x: r.minX + fx * r.width, y: r.minY + fy * r.height)
+        }
+        let path = NSBezierPath()
+        path.move(to: at(0.5, 0))
+        path.curve(to: at(1, 0.16), controlPoint1: at(0.72, 0.1), controlPoint2: at(0.8, 0.14))
+        path.line(to: at(1, 0.5))
+        path.curve(to: at(0.5, 1), controlPoint1: at(1, 0.78), controlPoint2: at(0.78, 0.93))
+        path.curve(to: at(0, 0.5), controlPoint1: at(0.22, 0.93), controlPoint2: at(0, 0.78))
+        path.line(to: at(0, 0.16))
+        path.curve(to: at(0.5, 0), controlPoint1: at(0.2, 0.14), controlPoint2: at(0.28, 0.1))
+        path.close()
+        return path
     }
 
     private static func smoothstep(_ x: CGFloat) -> CGFloat {
@@ -96,6 +139,15 @@ final class CapybaraIconAnimator {
     private static let blinkStart: CFTimeInterval = 0.32
     private static let blinkDuration: CFTimeInterval = 0.15
 
+    /// The shield badge, shown while a VPN is connected.
+    var shield = false {
+        didSet {
+            // A running animation draws it on its next frame.
+            guard shield != oldValue, timer == nil else { return }
+            button?.image = CapybaraIcon.image(turn: turn, shield: shield)
+        }
+    }
+
     private weak var button: NSStatusBarButton?
     private var timer: Timer?
     private var facing = false
@@ -105,7 +157,7 @@ final class CapybaraIconAnimator {
 
     init(button: NSStatusBarButton) {
         self.button = button
-        button.image = CapybaraIcon.image()
+        button.image = CapybaraIcon.image(shield: shield)
     }
 
     func face(_ facing: Bool) {
@@ -143,7 +195,7 @@ final class CapybaraIconAnimator {
         if finished {
             stop()
         } else {
-            button?.image = CapybaraIcon.image(turn: turn, blink: blink)
+            button?.image = CapybaraIcon.image(turn: turn, blink: blink, shield: shield)
         }
     }
 
@@ -151,7 +203,7 @@ final class CapybaraIconAnimator {
         timer?.invalidate()
         timer = nil
         turn = facing ? 1 : 0
-        button?.image = CapybaraIcon.image(turn: turn)
+        button?.image = CapybaraIcon.image(turn: turn, shield: shield)
     }
 
     /// Overshoots a little and settles back, so the turn has some life.

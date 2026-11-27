@@ -96,6 +96,25 @@ final class CubbyController {
         }
     }
 
+    /// A shield on the capybara while a VPN is connected, and the VPN's row in the panel.
+    var showsVPNStatus: Bool {
+        didSet {
+            guard showsVPNStatus != oldValue else { return }
+            prefs.showsVPNStatus = showsVPNStatus
+            if showsVPNStatus {
+                networkWatch.start()
+            } else {
+                networkWatch.stop()
+                setVPN(nil)
+            }
+        }
+    }
+
+    /// The VPN to show; nil when none is set up or showing it is off.
+    private(set) var vpn: VPNStatus?
+    /// Called when `vpn` changes, so the status item can redraw the capybara.
+    @ObservationIgnored var onVPNChange: (() -> Void)?
+
     /// Reset when the panel closes.
     var showsSettings = false
 
@@ -245,6 +264,9 @@ final class CubbyController {
             guard let self else { return done(false) }
             send(force: true) { failure in done(failure == nil) }
         })
+    @ObservationIgnored private lazy var networkWatch = NetworkWatch { [weak self] snapshot in
+        self?.networkChanged(snapshot)
+    }
 
     var isRestrictionAvailable: Bool { restriction.isAvailable }
 
@@ -261,6 +283,7 @@ final class CubbyController {
         appOrder = prefs.appOrder
         hideNewApps = prefs.hideNewApps
         showsNotRunningApps = prefs.showsNotRunningApps
+        showsVPNStatus = prefs.showsVPNStatus
         hotkey = prefs.hotkey
         ownID = Bundle.main.bundleIdentifier ?? ""
         installProblem = Self.findInstallProblem(bundleID: ownID)
@@ -347,6 +370,7 @@ final class CubbyController {
             DispatchQueue.main.async { self?.scheduleRunningAppsCheck() }
         }
         watchSleepAndSessions()
+        if showsVPNStatus { networkWatch.start() }
         // A shortcut another app took meanwhile is kept, so it works again once freed.
         if hotkey != nil { registerSavedHotkey() }
         // Apps launched at login before CapyBar and never seen: check them like new ones.
@@ -393,8 +417,46 @@ final class CubbyController {
         workspaceObservers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)
         workspaceObservers = []
         keeper.cancel()
+        networkWatch.stop()
         HotkeyCenter.shared.unregister()
         restriction.clear()
+    }
+
+    // MARK: - VPN
+
+    private func networkChanged(_ snapshot: NetworkSnapshot) {
+        guard showsVPNStatus else { return }
+        setVPN(
+            VPNStatus.evaluate(snapshot) { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) != nil })
+    }
+
+    private func setVPN(_ status: VPNStatus?) {
+        guard status != vpn else { return }
+        if status?.isConnected != vpn?.isConnected {
+            let state = status?.isConnected == true ? "connected" : "not connected"
+            logger.info("VPN \(state, privacy: .public)")
+        }
+        vpn = status
+        onVPNChange?()
+    }
+
+    /// The VPN's row in the panel can open the VPN app's menu.
+    var canOpenVPNApp: Bool { vpn?.appBundleID != nil }
+
+    /// Opens the VPN app's menu bar icon like any hidden one, whether CapyBar hides it or
+    /// not; starts the app when it isn't running.
+    func openVPNApp() {
+        guard let bundleID = vpn?.appBundleID else { return }
+        lastClick = .now
+        if let entry = panelEntries.first(where: { $0.bundleID == bundleID && $0.isRunning }) {
+            open(entry)
+        } else if let item = items.first(where: { $0.bundleID == bundleID }), Self.isRunning(bundleID, pid: item.pid) {
+            open(item)
+        } else if NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty {
+            launch(bundleID)
+        } else {
+            reportClickFailure(bundleID, "Couldn’t find the menu bar icon of \(Self.appName(bundleID)).")
+        }
     }
 
     // MARK: - Shortcut

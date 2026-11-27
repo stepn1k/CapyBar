@@ -3,17 +3,24 @@ import CapyBarCore
 import SwiftUI
 
 /// Just the icons, with the gear beside them; nothing else takes room. A search field
-/// shows up above the icons only while searching. Settings open below, so the gear
-/// never moves out from under the pointer. Keys are handled by `StatusItemController`
-/// (an AppKit monitor) and `PanelNavigator`; this view only draws their state.
+/// shows up above the icons only while searching, and a VPN row only while a VPN is set
+/// up. Settings open below, so the gear never moves out from under the pointer. Keys are
+/// handled by `StatusItemController` (an AppKit monitor) and `PanelNavigator`; this view
+/// only draws their state.
 struct PanelView: View {
     let controller: CubbyController
     /// Opens the entry's menu, or starts its app when it is not running.
     let open: (CubbyController.PanelEntry) -> Void
+    /// Opens the VPN app's menu.
+    let openVPN: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if isReady {
+                if let vpn = controller.vpn {
+                    VPNRow(vpn: vpn, canOpen: controller.canOpenVPNApp, open: openVPN)
+                        .disabled(controller.isBusy)
+                }
                 if isSearchFieldShown {
                     SearchField(controller: controller)
                 }
@@ -153,6 +160,57 @@ private struct IconGrid: View {
             }
         }
     }
+}
+
+/// Whether a VPN is on, and a click away from the VPN app's menu, so its own icon can
+/// stay in the cubby.
+private struct VPNRow: View {
+    let vpn: VPNStatus
+    let canOpen: Bool
+    let open: () -> Void
+
+    var body: some View {
+        // A VPN built into macOS has no app to open: then it is only a label.
+        if canOpen {
+            Button(action: open) { row }
+                .buttonStyle(.plain)
+                .focusable(false)
+                .help("Open the menu of \(vpn.name)")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(vpn.name), \(state)")
+                .accessibilityAddTraits(.isButton)
+        } else {
+            row
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(vpn.name), \(state)")
+        }
+    }
+
+    private var row: some View {
+        HStack(spacing: 6) {
+            Image(systemName: vpn.isConnected ? "checkmark.shield.fill" : "shield.slash")
+                .foregroundStyle(vpn.isConnected ? Color.accentColor : .secondary)
+                .frame(width: 16)
+            Text(vpn.name)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 8)
+            Text(state)
+                .foregroundStyle(.secondary)
+            if canOpen {
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .font(.callout)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+        .contentShape(Rectangle())
+    }
+
+    private var state: String { vpn.isConnected ? "Connected" : "Not connected" }
 }
 
 /// With nothing chosen yet, the next step is right here instead of behind the gear.

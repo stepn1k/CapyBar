@@ -13,6 +13,7 @@ keyComboTests()
 panelSearchTests()
 keyboardTests()
 panelNotesTests()
+vpnTests()
 await restrictionTests()
 await reliabilityTests()
 

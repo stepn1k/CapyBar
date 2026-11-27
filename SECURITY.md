@@ -5,6 +5,7 @@
 - **Accessibility.** Needed to read menu bar items (`AXExtrasMenuBar`) and press them (`AXPress`). CapyBar does not read window contents, keystrokes or text in other apps.
 - **No Screen Recording.** The panel shows app icons, not captures of the menu bar.
 - **No network by default.** No analytics or accounts. The only request CapyBar ever makes is the update check: when you choose Check for Updates or turn on automatic checks, it downloads `version.json` from the latest GitHub release over HTTPS, without cookies.
+- **Network state, read locally.** To show VPN status, CapyBar reads which VPNs are set up and whether one is connected from macOS's System Configuration. Nothing from it is stored or sent.
 - **Stored data.** Only the apps it has seen, which of them are hidden, their order and a few settings, in `UserDefaults` (`app.capybar.CapyBar`). *Open at login* is a standard login item.
 
 Releases are built by GitHub Actions from the tagged commit, with a build provenance attestation. To check a download: `gh attestation verify CapyBar.zip -R stepn1k/CapyBar`.
