@@ -60,6 +60,16 @@ struct SettingsSection: View {
                     Text("Keep apps that aren’t running")
                 }
                 .help("Keep hidden apps that aren’t running in this panel, greyed out; click one to open it")
+                CardDivider()
+                SwitchRow(isOn: $controller.clockOpensNotificationCenter) {
+                    Text("Clock opens Notification Center")
+                }
+                .help(
+                    """
+                    macOS ignores clicks on the clock while icons are hidden. CapyBar holds your \
+                    click for a moment, then lets it through and shows hidden icons until \
+                    Notification Center closes, as macOS does without CapyBar.
+                    """)
             }
             OptionGroup("Panel") {
                 ShortcutRow(controller: controller)

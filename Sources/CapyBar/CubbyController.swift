@@ -110,6 +110,15 @@ final class CubbyController {
         }
     }
 
+    /// A click on the clock opens Notification Center while icons are hidden.
+    var clockOpensNotificationCenter: Bool {
+        didSet {
+            guard clockOpensNotificationCenter != oldValue else { return }
+            prefs.clockOpensNotificationCenter = clockOpensNotificationCenter
+            updateClockBridge()
+        }
+    }
+
     /// The VPN to show; nil when none is set up or showing it is off.
     private(set) var vpn: VPNStatus?
     /// Called when `vpn` changes, so the status item can redraw the capybara.
@@ -267,6 +276,16 @@ final class CubbyController {
     @ObservationIgnored private lazy var networkWatch = NetworkWatch { [weak self] snapshot in
         self?.networkChanged(snapshot)
     }
+    /// Lets the clock open Notification Center, which macOS refuses while the restriction
+    /// is held (see `ClockBridge`).
+    @ObservationIgnored private lazy var clockBridge = ClockBridge(
+        lift: { [weak self] in self?.liftForClock() ?? false },
+        restore: { [weak self] in self?.restoreAfterClock() })
+    /// Counts lifts, so a watchdog only ends the lift it was set for.
+    @ObservationIgnored private var clockLifts = 0
+    /// The longest a lift may last whatever happens: the bridge itself hides again once
+    /// Notification Center closes, or after `ClockEngine.closeTimeout`.
+    static let clockLiftLimit: Duration = .seconds(ClockEngine.closeTimeout + 60)
 
     var isRestrictionAvailable: Bool { restriction.isAvailable }
 
@@ -284,6 +303,7 @@ final class CubbyController {
         hideNewApps = prefs.hideNewApps
         showsNotRunningApps = prefs.showsNotRunningApps
         showsVPNStatus = prefs.showsVPNStatus
+        clockOpensNotificationCenter = prefs.clockOpensNotificationCenter
         hotkey = prefs.hotkey
         ownID = Bundle.main.bundleIdentifier ?? ""
         installProblem = Self.findInstallProblem(bundleID: ownID)
@@ -354,7 +374,8 @@ final class CubbyController {
         } else {
             refreshLoginItem()
         }
-        if !isTrusted { watchForTrust() }
+        // Also while trusted: the clock's event tap must go the moment the grant does.
+        watchForTrust()
 
         let running = runningBundleIDs
         // First launch: everything that runs now is "known" and stays visible.
@@ -419,6 +440,7 @@ final class CubbyController {
         keeper.cancel()
         networkWatch.stop()
         HotkeyCenter.shared.unregister()
+        clockBridge.disarm()
         restriction.clear()
     }
 
@@ -538,7 +560,8 @@ final class CubbyController {
             forName: Notification.Name("com.apple.accessibility.api"), object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                // AXIsProcessTrusted() flips a moment after the notification.
+                self?.trustMayHaveChanged()
+                // AXIsProcessTrusted() can flip a moment after the notification.
                 try? await Task.sleep(for: .milliseconds(500))
                 self?.trustMayHaveChanged()
             }
@@ -546,11 +569,13 @@ final class CubbyController {
     }
 
     private func trustMayHaveChanged() {
-        guard !isTrusted, MenuBarScanner.isTrusted else { return }
-        isTrusted = true
-        if let trustObserver { DistributedNotificationCenter.default().removeObserver(trustObserver) }
-        trustObserver = nil
-        onTrustGranted?()
+        let trusted = MenuBarScanner.isTrusted
+        guard trusted != isTrusted else { return }
+        isTrusted = trusted
+        // The clock's event tap needs Accessibility, and must not outlive it: a tap left
+        // behind by a revoked grant can stall clicks.
+        updateClockBridge()
+        if trusted { onTrustGranted?() }
     }
 
     // MARK: - Open at Login
@@ -575,6 +600,8 @@ final class CubbyController {
     /// Quitting releases the restriction, so every icon comes back. Returns why it
     /// failed; on success CapyBar quits.
     func uninstall() async -> String? {
+        // Uninstalling resets Accessibility; the clock's tap must not outlive it.
+        clockBridge.disarm()
         if let failure = await Uninstaller.uninstall(bundleID: ownID, bundleURL: Bundle.main.bundleURL) {
             refreshLoginItem()
             return failure.message
@@ -612,6 +639,7 @@ final class CubbyController {
         guard wantsRestriction(running: running) else {
             restriction.clear()
             hidingProblem = nil  // nothing to hide, so nothing refused
+            updateClockBridge()
             completion(nil)
             return
         }
@@ -619,7 +647,44 @@ final class CubbyController {
             running: running, known: known, hidden: hidden, revealed: revealed, ownBundleID: ownID)
         restriction.apply(allowing: allowed, force: force) { [weak self] failure in
             self?.hidingProblem = failure.map(Self.describe)
+            self?.updateClockBridge()
             completion(failure)
+        }
+    }
+
+    // MARK: - Clock
+
+    /// Clicks are watched only while a restriction is held (or lifted for a click) and
+    /// the setting is on: without a restriction the clock works by itself.
+    private func updateClockBridge() {
+        if clockOpensNotificationCenter, isTrusted, restriction.allowed != nil || restriction.isSuspended {
+            clockBridge.arm()
+        } else {
+            clockBridge.disarm()
+        }
+    }
+
+    /// Not while an icon's menu is being opened: that reveal owns the restriction.
+    private func liftForClock() -> Bool {
+        guard isTrusted, !isBusy, restriction.suspend() else { return false }
+        clockLifts += 1
+        let lift = clockLifts
+        Task { [weak self] in
+            try? await Task.sleep(for: Self.clockLiftLimit)
+            guard let self, clockLifts == lift, restriction.isSuspended else { return }
+            logger.error("clock lift outlasted its limit; hiding again")
+            restoreAfterClock()
+        }
+        return true
+    }
+
+    private func restoreAfterClock() {
+        guard restriction.isSuspended else { return }
+        restriction.resume { [weak self] failure in
+            guard let self else { return }
+            hidingProblem = failure.map(Self.describe)
+            if case .rejected = failure { keeper.trigger(.failed) }
+            updateClockBridge()
         }
     }
 
@@ -705,6 +770,7 @@ final class CubbyController {
         if !Allowlist.needsRestriction(running: running, hidden: hidden, revealed: revealed, ownBundleID: ownID) {
             restriction.clear()
             hidingProblem = nil
+            updateClockBridge()
         }
     }
 
@@ -858,6 +924,8 @@ final class CubbyController {
     /// items show up in Accessibility, then open the first one like any other item.
     private func openUnscanned(bundleID: String, pid: pid_t) {
         guard !isBusy else { return }
+        // A reveal sent while lifted for the clock would wait for Notification Center.
+        restoreAfterClock()
         guard isTrusted else {
             notes.post(.general("CapyBar needs Accessibility permission."))
             return
@@ -915,6 +983,7 @@ final class CubbyController {
     /// Reveals the item's app for a moment, opens its menu, hides it again once closed.
     func open(_ item: MenuBarItem) {
         guard !isBusy else { return }
+        restoreAfterClock()
         guard isTrusted else {
             notes.post(.general("CapyBar needs Accessibility permission."))
             return

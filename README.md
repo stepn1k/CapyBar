@@ -72,6 +72,10 @@ Yes, for the main job: choosing which icons are shown. CapyBar is free, uses mac
 
 No. Accessibility is the only permission.
 
+### Why do hidden icons show while Notification Center is open?
+
+While any app is hidden, macOS ignores clicks on the clock. So CapyBar holds your click on the clock for a moment, stops hiding, lets the click through, and hides again when Notification Center closes. If you'd rather keep icons hidden, for example while sharing your screen, turn off Clock opens Notification Center in Options: the clock then does nothing while icons are hidden. Swiping left with two fingers from the right edge of the trackpad opens Notification Center either way, and keeps icons hidden.
+
 ### Why did Focus or Now Playing disappear from the menu bar?
 
 While any app is hidden, macOS also hides some of its own icons, like Focus and Now Playing.

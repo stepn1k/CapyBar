@@ -14,6 +14,8 @@ panelSearchTests()
 keyboardTests()
 panelNotesTests()
 vpnTests()
+clockTests()
+clockRestrictionTests()
 await restrictionTests()
 await reliabilityTests()
 

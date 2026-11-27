@@ -70,6 +70,10 @@ public final class Restriction {
     /// Activations given up on after a timeout. Released again if a late reply arrives,
     /// in case the framework ignored a release sent before activation completed.
     private var abandoned: [Int: AnyObject] = [:]
+    /// While lifted (see `suspend()`): the list `resume()` sends.
+    private var suspendedList: Set<String>?
+    /// Completions of `apply` calls made while lifted; they get `resume()`'s answer.
+    private var deferred: [@MainActor (Failure?) -> Void] = []
 
     public convenience init() {
         self.init(backend: MenuBarAgentBackend(), replyTimeout: Self.defaultReplyTimeout)
@@ -87,6 +91,42 @@ public final class Restriction {
 
     package var pendingCount: Int { pending.count }
 
+    /// Lifted by `suspend()`; `resume()` hides again.
+    public var isSuspended: Bool { suspendedList != nil }
+
+    /// Releases the restriction while Notification Center is open from the clock (macOS
+    /// ignores the clock while any restriction is held). Until `resume()`, `apply` only
+    /// records the newest list, and `clear()` ends the lift for good.
+    ///
+    /// Returns false when nothing is held, or when an activation still waits for
+    /// MenuBarAgent: a release sent before it answers can be ignored.
+    public func suspend() -> Bool {
+        guard suspendedList == nil, let applied, assertion != nil, pending.isEmpty else { return false }
+        logger.info("restriction lifted for the clock")
+        suspendedList = applied
+        backend.invalidate(assertion)
+        assertion = nil
+        self.applied = nil
+        return true
+    }
+
+    /// Ends a lift: sends the newest list again. The completion, and those of `apply`
+    /// calls made meanwhile, get its answer. Does nothing unless lifted.
+    public func resume(completion: (@MainActor (Failure?) -> Void)? = nil) {
+        guard let list = suspendedList else {
+            completion?(nil)
+            return
+        }
+        suspendedList = nil
+        let waiting = deferred
+        deferred = []
+        logger.info("restriction back after a lift")
+        apply(allowing: list, force: true) { failure in
+            waiting.forEach { $0(failure) }
+            completion?(failure)
+        }
+    }
+
     /// Makes `bundleIDs` the only apps whose icons are drawn.
     ///
     /// The new assertion is activated before the old one is released (the newest wins),
@@ -100,6 +140,12 @@ public final class Restriction {
     ) {
         guard backend.isAvailable else {
             completion?(.unavailable)
+            return
+        }
+        if suspendedList != nil {
+            // Lifted for a click on the clock: `resume()` sends the newest list.
+            suspendedList = bundleIDs
+            if let completion { deferred.append(completion) }
             return
         }
         if !force, assertion != nil, applied == bundleIDs {
@@ -147,6 +193,13 @@ public final class Restriction {
     /// Releases every assertion: all icons are drawn again. Activations still in flight
     /// keep their entries so their callers still get an answer.
     public func clear() {
+        if suspendedList != nil {
+            // Nothing is held while lifted: the lift just never ends.
+            suspendedList = nil
+            let waiting = deferred
+            deferred = []
+            waiting.forEach { $0(nil) }
+        }
         guard assertion != nil || !pending.isEmpty else { return }
         logger.info("restriction cleared")
         releaseAll()
