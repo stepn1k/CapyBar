@@ -24,6 +24,7 @@ scripts/bundle.sh                                                            # b
 | Finding other apps' icons (Accessibility) | `CapyBarCore/MenuBarScanner.swift` |
 | Opening a hidden icon's menu | `CapyBarCore/ItemPresser.swift` |
 | Panel keys and search | `CapyBarCore/PanelNavigator.swift`, `PanelSearch.swift`; key monitor in `CapyBar/StatusItemController.swift` |
+| VPN status (shield on the capybara, VPN row in the panel) | `CapyBarCore/NetworkWatch.swift`, `VPNStatus.swift`; wired in `CapyBar/CubbyController.swift` (VPN section), drawn in `StatusItemController.swift`, `CapybaraIcon.swift`, `PanelView.swift` |
 | Global shortcut | `CapyBar/HotkeyCenter.swift`, `CapyBarCore/KeyCombo.swift` |
 | Stored settings | `CapyBarCore/Preferences.swift` |
 | App state, glue between all of the above | `CapyBar/CubbyController.swift` |
@@ -53,7 +54,7 @@ scripts/bundle.sh                                                            # b
 
 1. Lint, tests and build pass (commands above).
 2. Update the docs that your change makes untrue:
-   - behaviour users see: README "Usage" and "Limitations", and the "?" tips in `SettingsView.swift`
+   - behaviour users see: README "Features", "Install" and "FAQ", and the "?" tips in `SettingsView.swift`
    - how hiding works: `docs/HOW_IT_WORKS.md`
    - re-hiding after events: `docs/RELIABILITY.md`, plus `scripts/check-reliability.sh agent` on a real Mac
    - permissions, network or stored data: `SECURITY.md`

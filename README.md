@@ -16,8 +16,8 @@
 
 <p align="center">
   <a href="https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip"><b>Download</b></a> ·
+  <a href="#features">Features</a> ·
   <a href="#install">Install</a> ·
-  <a href="#usage">Usage</a> ·
   <a href="#faq">FAQ</a>
 </p>
 
@@ -32,37 +32,31 @@ Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones 
 - **Safe.** If CapyBar quits or crashes, every icon comes back.
 - **Stays put.** Icons stay hidden after sleep, restarts and app updates.
 
+## Features
+
+### Find any icon from the keyboard
+
+Set a shortcut in Options, then pick an icon with the arrow keys and open it with <kbd>Return</kbd>. Or just start typing to search.
+
+<p align="center">
+  <img src="docs/keyboard.gif" width="480" alt="The arrow keys move between hidden icons. Typing “cla” narrows the panel down to Claude.">
+</p>
+
+### See your VPN at a glance
+
+When a VPN is on, the capybara wears a small shield. The VPN sits at the top of the panel, even if its own icon is hidden.
+
+<p align="center">
+  <img src="docs/vpn.png" width="480" alt="The capybara wears a shield. The panel shows the connected VPN above the hidden icons.">
+</p>
+
 ## Install
 
 1. [Download CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip), unzip it and open CapyBar.app.
 2. macOS blocks it the first time, because CapyBar isn't notarized yet. Click Done, then go to System Settings → Privacy & Security and click Open Anyway.
 3. CapyBar moves itself to Applications and opens again.
 4. Allow Accessibility when asked.
-
-To build it yourself:
-
-```bash
-git clone https://github.com/stepn1k/CapyBar.git
-cd CapyBar
-scripts/bundle.sh --install
-```
-
-## Usage
-
-1. Click the capybara, then the gear, and switch on the apps you want to hide.
-2. Their icons leave the menu bar. To reach one, click the capybara, then click its icon.
-3. Right-click the capybara to show all icons again, check for updates or quit.
-
-You can also set a keyboard shortcut in Options. Then pick an icon with the arrow keys, open it with <kbd>Return</kbd>, or just start typing to search.
-
-<p align="center">
-  <img src="docs/keyboard.gif" width="600" alt="The arrow keys move between hidden icons. Typing “cla” narrows the panel down to Claude.">
-</p>
-
-## Limitations
-
-- An app is hidden with all of its icons. You can't hide just one of them.
-- While anything is hidden, macOS also hides some system icons, like Focus and Now Playing.
+5. Click the capybara, then the gear, and switch on the apps you want to hide. Their icons move into the panel under the capybara.
 
 ## FAQ
 
@@ -77,6 +71,10 @@ Yes, for the main job: choosing which icons are shown. CapyBar is free, uses mac
 ### Does CapyBar need Screen Recording?
 
 No. Accessibility is the only permission.
+
+### Why did Focus or Now Playing disappear from the menu bar?
+
+While any app is hidden, macOS also hides some of its own icons, like Focus and Now Playing.
 
 ### macOS says CapyBar can't be opened. What do I do?
 
@@ -96,6 +94,6 @@ Right-click the capybara and choose Uninstall CapyBar. It removes its settings a
 
 ## More
 
-[How it works](docs/HOW_IT_WORKS.md) · [Reliability](docs/RELIABILITY.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Questions](https://github.com/stepn1k/CapyBar/discussions) · [Report a bug](https://github.com/stepn1k/CapyBar/issues/new/choose)
+[How it works](docs/HOW_IT_WORKS.md) · [Build it yourself](CONTRIBUTING.md#build) · [Reliability](docs/RELIABILITY.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Questions](https://github.com/stepn1k/CapyBar/discussions) · [Report a bug](https://github.com/stepn1k/CapyBar/issues/new/choose)
 
 CapyBar is [MIT](LICENSE) licensed.

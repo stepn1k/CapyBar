@@ -2,6 +2,18 @@
 
 You need macOS 27 and the Command Line Tools with Swift 6.
 
+## Build
+
+```bash
+git clone https://github.com/stepn1k/CapyBar.git
+cd CapyBar
+scripts/bundle.sh --install
+```
+
+This builds CapyBar.app and installs it into /Applications. Builds are ad-hoc signed, so allow Accessibility again after each one.
+
+## Changing the code
+
 [AGENTS.md](AGENTS.md) has what you need to change the code: commands, which file to change, the rules every change keeps and the done checklist. It's written for people and AI agents alike. [How it works](docs/HOW_IT_WORKS.md) explains the approach.
 
 ## Releases
