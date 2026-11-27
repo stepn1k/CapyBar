@@ -38,6 +38,8 @@ private final class ScriptedResend {
     var answers: [Bool]
     private(set) var calls = 0
     var wanted = true
+    /// Runs inside each resend, with its number, before it answers.
+    var onCall: ((Int) -> Void)?
 
     init(answers: [Bool] = []) { self.answers = answers }
 
@@ -47,6 +49,7 @@ private final class ScriptedResend {
             isWanted: { [unowned self] in wanted },
             resend: { [unowned self] done in
                 calls += 1
+                onCall?(calls)
                 done(answers.isEmpty ? true : answers.removeFirst())
             })
     }
@@ -73,7 +76,8 @@ func reliabilityTests() async {
         let keeper = script.makeKeeper()
         keeper.trigger(trigger)
         check(script.calls == 0 && keeper.isWaiting, "\(trigger): waits before resending")
-        await wait(.milliseconds(80))
+        await checkEventually("\(trigger): sends the restriction again") { script.calls == 1 }
+        await wait(.milliseconds(40))
         check(script.calls == 1, "\(trigger): sends the restriction again once")
         check(keeper.lastOutcome == .restored(trigger, attempt: 1), "\(trigger): restored")
         check(!keeper.isWaiting, "\(trigger): nothing left waiting")
@@ -120,11 +124,12 @@ func reliabilityTests() async {
     }
     do {
         let script = ScriptedResend(answers: [false, false, false])
+        // The hidden app quits while the first resend is refused. Set from inside it, so a
+        // slow CI runner can't fit a retry in before the test notices.
+        script.onCall = { [unowned script] call in if call == 1 { script.wanted = false } }
         let keeper = script.makeKeeper()
         keeper.trigger(.failed)
-        // Wait for the first resend itself: a fixed delay races it on a slow CI runner.
         await checkEventually("first resend refused") { script.calls == 1 }
-        script.wanted = false  // the hidden app quit meanwhile
         await wait(.milliseconds(100))
         check(script.calls == 1, "stops retrying once nothing hidden runs")
     }
@@ -137,7 +142,8 @@ func reliabilityTests() async {
         keeper.trigger(.woke)
         keeper.trigger(.agentRestarted)
         keeper.trigger(.sessionActivated)
-        await wait(.milliseconds(80))
+        await checkEventually("the resend goes out") { script.calls == 1 }
+        await wait(.milliseconds(40))
         check(script.calls == 1, "back-to-back triggers make one resend")
         check(keeper.lastOutcome == .restored(.sessionActivated, attempt: 1), "the newest trigger wins")
     }
@@ -152,10 +158,10 @@ func reliabilityTests() async {
                 pending.append(done)
             })
         keeper.trigger(.failed)
-        await wait(.milliseconds(40))
-        check(calls == 1, "first resend is in flight")
+        await checkEventually("first resend is in flight") { calls == 1 }
         keeper.trigger(.agentRestarted)
         pending.removeFirst()(false)  // the stale reply arrives: refused
+        await checkEventually("the newer trigger resends") { calls == 2 }
         await wait(.milliseconds(40))
         check(calls == 2, "the stale refusal did not add a retry; the newer trigger resent once")
         pending.removeFirst()(true)
