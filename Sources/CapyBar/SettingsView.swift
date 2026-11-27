@@ -11,20 +11,16 @@ struct SettingsSection: View {
 
     private static let rowHeight: CGFloat = 28
     private static let maxListHeight: CGFloat = 240
-    /// Rough height of the Options card; the taller tab sets the area's height, so
-    /// switching tabs does not make the panel jump.
-    private static let optionsHeight: CGFloat = 178
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             FullWidthTabs(titles: ["Apps", "Options"], selection: tabIndex)
-            Group {
-                switch tab {
-                case .apps: Card { appList }
-                case .options: options
-                }
+            // Both tabs are laid out and the other one is only invisible, so the area is
+            // as tall as the taller tab and switching never makes the panel jump.
+            ZStack(alignment: .topLeading) {
+                page(.apps) { Card { appList } }
+                page(.options) { options }
             }
-            .frame(minHeight: tabHeight, alignment: .top)
             HStack {
                 VersionLabel()
                 Spacer()
@@ -32,6 +28,15 @@ struct SettingsSection: View {
             }
         }
         .controlSize(.small)
+        .onChange(of: tab) { controller.isRecordingHotkey = false }
+    }
+
+    private func page(_ page: Tab, @ViewBuilder content: () -> some View) -> some View {
+        let isShown = tab == page
+        return content()
+            .opacity(isShown ? 1 : 0)
+            .allowsHitTesting(isShown)
+            .accessibilityHidden(!isShown)
     }
 
     private var tabIndex: Binding<Int> {
@@ -41,63 +46,61 @@ struct SettingsSection: View {
         )
     }
 
-    private var tabHeight: CGFloat {
-        let list =
-            controller.appEntries.isEmpty
-            ? Self.rowHeight
-            : min(CGFloat(controller.appEntries.count) * Self.rowHeight, Self.maxListHeight)
-        return max(list + 8, Self.optionsHeight)
-    }
-
+    /// Grouped like System Settings: what gets hidden, what the panel does, and the
+    /// set-once switches last.
     private var options: some View {
-        Card {
-            SwitchRow(isOn: $controller.showsNotRunningApps) {
-                Text("Show apps that aren’t running")
-            }
-            .help("Keep hidden apps that aren’t running in this panel, greyed out; click one to open it")
-            CardDivider()
-            SwitchRow(isOn: $controller.hideNewApps) {
-                Text("Hide new apps automatically")
-            }
-            .help("Hide a newly installed app’s icon the first time it appears")
-            CardDivider()
-            SwitchRow(isOn: $controller.showsVPNStatus) {
-                Text("Show VPN status")
-            }
-            .help(
-                """
-                Add a shield to the capybara while a VPN is connected, and a row above the \
-                icons that opens the VPN app’s menu. CapyBar reads this from macOS; nothing is sent.
-                """)
-            CardDivider()
-            ShortcutRow(controller: controller)
-            CardDivider()
-            SwitchRow(isOn: openAtLogin) {
-                Text("Open at login")
-            }
-            .disabled(!controller.canHide)
-            .help(
-                controller.canHide
-                    ? "Start CapyBar when you log in, so hidden icons stay hidden after a restart"
-                    : "Available once CapyBar is in the Applications folder")
-            CardDivider()
-            SwitchRow(isOn: checksForUpdates) {
-                Text("Check for updates automatically")
-            }
-            .help(
-                """
-                Once a day, download a small file from GitHub with the newest version number. \
-                Nothing about you or your apps is sent.
-                """)
-            if controller.loginItemNeedsApproval {
-                HStack(spacing: 4) {
-                    Text("Allow CapyBar in Login Items to finish.")
-                        .foregroundStyle(.secondary)
-                    Button("Open Settings…") { LoginItem.openSystemSettings() }
-                        .buttonStyle(.link)
+        VStack(alignment: .leading, spacing: 8) {
+            OptionGroup("Hiding") {
+                SwitchRow(isOn: $controller.hideNewApps) {
+                    Text("Hide new apps")
                 }
-                .font(.caption)
-                .padding(.vertical, 4)
+                .help("Hide a newly installed app’s icon the first time it appears")
+                CardDivider()
+                SwitchRow(isOn: $controller.showsNotRunningApps) {
+                    Text("Keep apps that aren’t running")
+                }
+                .help("Keep hidden apps that aren’t running in this panel, greyed out; click one to open it")
+            }
+            OptionGroup("Panel") {
+                ShortcutRow(controller: controller)
+                CardDivider()
+                SwitchRow(isOn: $controller.showsVPNStatus) {
+                    Text("VPN status")
+                }
+                .help(
+                    """
+                    Add a shield to the capybara while a VPN is connected, and a row above the \
+                    icons that opens the VPN app’s menu. CapyBar reads this from macOS; nothing is sent.
+                    """)
+            }
+            OptionGroup("General") {
+                SwitchRow(isOn: openAtLogin) {
+                    Text("Open at login")
+                }
+                .disabled(!controller.canHide)
+                .help(
+                    controller.canHide
+                        ? "Start CapyBar when you log in, so hidden icons stay hidden after a restart"
+                        : "Available once CapyBar is in the Applications folder")
+                CardDivider()
+                SwitchRow(isOn: checksForUpdates) {
+                    Text("Check for updates")
+                }
+                .help(
+                    """
+                    Once a day, download a small file from GitHub with the newest version number. \
+                    Nothing about you or your apps is sent.
+                    """)
+                if controller.loginItemNeedsApproval {
+                    HStack(spacing: 4) {
+                        Text("Allow CapyBar in Login Items to finish.")
+                            .foregroundStyle(.secondary)
+                        Button("Open Settings…") { LoginItem.openSystemSettings() }
+                            .buttonStyle(.link)
+                    }
+                    .font(.caption)
+                    .padding(.vertical, 4)
+                }
             }
         }
     }
@@ -383,6 +386,28 @@ private struct Card<Content: View>: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// A titled card of options, like a section in System Settings.
+private struct OptionGroup<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+                .accessibilityAddTraits(.isHeader)
+            Card { content }
+        }
     }
 }
 
