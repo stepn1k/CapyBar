@@ -165,7 +165,8 @@ func reliabilityTests() async {
     section("Reliability: with the real Restriction")
     do {
         let fake = FakeBackend()
-        let restriction = makeRestriction(fake, timeout: .milliseconds(50))
+        // Long enough that a slow CI machine replies in time, short enough to test the timeout.
+        let restriction = makeRestriction(fake, timeout: .milliseconds(300))
         let allowed: Set<String> = ["capybar", "visible.app"]
         restriction.apply(allowing: allowed)
         fake.reply(0)
@@ -175,8 +176,9 @@ func reliabilityTests() async {
 
         // MenuBarAgent restarted: the same list goes out again, although it did not change.
         keeper.trigger(.agentRestarted)
-        await wait(.milliseconds(40))
-        check(fake.activations == 2 && fake.ids(of: 1) == allowed.sorted(), "restart: the same allowlist is resent")
+        await checkEventually("restart: the same allowlist is resent") {
+            fake.activations == 2 && fake.ids(of: 1) == allowed.sorted()
+        }
         fake.reply(1)
         check(fake.alive == [1], "the old assertion is released once the new one holds")
         check(keeper.lastOutcome == .restored(.agentRestarted, attempt: 1), "restored")
@@ -192,7 +194,7 @@ func reliabilityTests() async {
         check(restriction.allowed == allowed, "hidden again")
         check(keeper.lastOutcome == .restored(.sessionActivated, attempt: 2), "restored on the second attempt")
 
-        // After wake MenuBarAgent may not answer at all: the 50 ms reply timeout fails
+        // After wake MenuBarAgent may not answer at all: the reply timeout fails
         // open, and the keeper tries again.
         keeper.trigger(.woke)
         await checkEventually("wake: resent") { fake.activations == 5 }
