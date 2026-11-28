@@ -11,7 +11,6 @@ struct PanelView: View {
     let controller: CubbyController
     /// Opens the entry's menu, or starts its app when it is not running.
     let open: (CubbyController.PanelEntry) -> Void
-    /// Opens the VPN app's menu.
     let openVPN: () -> Void
 
     var body: some View {

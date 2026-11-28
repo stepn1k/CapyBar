@@ -65,7 +65,7 @@ scripts/bundle.sh                                                            # b
 ## Gotchas
 
 - Tests are a plain executable using `check()` and `section()` from `TestKit.swift`, because the Command Line Tools ship without XCTest.
-- Builds are ad-hoc signed, so every rebuild needs Accessibility granted again. `bundle.sh --install` removes the stale entry.
+- Without the maintainer's signing certificate, builds are ad-hoc signed, so every rebuild needs Accessibility granted again. `bundle.sh --install` removes the stale entry.
 - Panel keys go through an AppKit key monitor, not SwiftUI focus, because a popover doesn't reliably give SwiftUI focus. `PanelKeyRoute` and `PanelNavigator` hold the logic; the views only draw the state.
 - Logs: `log show --info --last 30m --predicate 'subsystem == "app.capybar.CapyBar" AND process == "CapyBar"'`. Settings live in `defaults read app.capybar.CapyBar`.
 - Hold Option while launching to start with every icon visible.

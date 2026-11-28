@@ -87,7 +87,7 @@ enum AppMover {
         }
         // The flag goes only from bytes Gatekeeper already let run: the copy must be
         // this very code, unmodified. That also keeps the Accessibility grant, which is
-        // tied to the code's hash.
+        // tied to the code's signature.
         guard isSameCode(as: staged) else {
             try? fm.removeItem(at: staged)
             logger.error("staged copy differs from the running code")

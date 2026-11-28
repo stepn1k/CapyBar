@@ -11,6 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-27%2B-lightgrey?logo=apple" alt="macOS 27+">
   <img src="https://img.shields.io/badge/status-beta-blue" alt="Status: beta">
+  <a href="SECURITY.md"><img src="https://img.shields.io/badge/notarized-by%20Apple-black?logo=apple" alt="Signed and notarized by Apple"></a>
   <a href="https://github.com/stepn1k/CapyBar/releases/latest"><img src="https://img.shields.io/github/v/release/stepn1k/CapyBar?label=release" alt="Latest release"></a>
 </p>
 
@@ -29,7 +30,7 @@ Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones 
 
 - **Private.** No analytics, no accounts. Goes online only to check for updates, if you allow it.
 - **One permission.** Accessibility, nothing else.
-- **Safe.** If CapyBar quits or crashes, every icon comes back.
+- **Safe.** If CapyBar quits or crashes, every icon comes back. Signed and notarized by Apple.
 - **Stays put.** Icons stay hidden after sleep, restarts and app updates.
 
 ## Features
@@ -52,49 +53,53 @@ When a VPN is on, the capybara wears a small shield. The VPN sits at the top of 
 
 ## Install
 
-1. [Download CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip), unzip it and open CapyBar.app.
-2. macOS blocks it the first time, because CapyBar isn't notarized yet. Click Done, then go to System Settings → Privacy & Security and click Open Anyway.
-3. CapyBar moves itself to Applications and opens again.
-4. Allow Accessibility when asked.
-5. Click the capybara, then the gear, and switch on the apps you want to hide. Their icons move into the panel under the capybara.
+1. [Download CapyBar](https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip), unzip it and open CapyBar.app. It moves itself to Applications.
+2. Allow Accessibility when asked.
+3. Click the capybara, then the gear, and switch on the apps you want to hide. Their icons move into the panel under the capybara.
 
 ## FAQ
 
-### My menu bar icons are hidden behind the notch. How do I get to them?
+<details>
+<summary><b>My menu bar icons are hidden behind the notch. How do I get to them?</b></summary>
 
 Hide the icons you don't need every day, and the rest fit next to the notch again.
+</details>
 
-### Is CapyBar an alternative to Bartender, Ice or Hidden Bar?
+<details>
+<summary><b>Is CapyBar an alternative to Bartender, Ice or Hidden Bar?</b></summary>
 
 Yes, for the main job: choosing which icons are shown. CapyBar is free, uses macOS 27's own menu bar allowlist, and hides whole apps rather than single icons.
+</details>
 
-### Does CapyBar need Screen Recording?
+<details>
+<summary><b>Does CapyBar need Screen Recording?</b></summary>
 
 No. Accessibility is the only permission.
+</details>
 
-### Why do hidden icons show while Notification Center is open?
+<details>
+<summary><b>Why do hidden icons show while Notification Center is open?</b></summary>
 
 macOS 27 puts tight limits on what apps can do with the menu bar, and while icons are hidden it blocks Notification Center. Showing them while it is open is the only way to keep it working. A two-finger swipe from the right edge of the trackpad opens it without showing them.
+</details>
 
-### Why did Focus or Now Playing disappear from the menu bar?
+<details>
+<summary><b>Why did Focus or Now Playing disappear from the menu bar?</b></summary>
 
 While any app is hidden, macOS also hides some of its own icons, like Focus and Now Playing.
+</details>
 
-### macOS says CapyBar can't be opened. What do I do?
-
-Click Done, then go to System Settings → Privacy & Security and click Open Anyway.
-
-### Why does macOS ask for Accessibility again after an update?
-
-CapyBar isn't signed with an Apple developer certificate yet, so macOS treats each update as a new app. Allow it again.
-
-### Can a macOS update break CapyBar?
+<details>
+<summary><b>Can a macOS update break CapyBar?</b></summary>
 
 It can, because CapyBar uses a private part of macOS. If that changes, CapyBar stops hiding and every icon stays visible until CapyBar is updated.
+</details>
 
-### How do I uninstall it?
+<details>
+<summary><b>How do I uninstall it?</b></summary>
 
 Right-click the capybara and choose Uninstall CapyBar. It removes its settings and permission, then moves itself to the Trash. If you deleted it by hand, also run `defaults delete app.capybar.CapyBar`.
+</details>
 
 ## More
 

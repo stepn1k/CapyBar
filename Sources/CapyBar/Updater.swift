@@ -82,7 +82,7 @@ final class Updater {
             alert.messageText = "CapyBar \(latest.version) is available"
             alert.informativeText = """
                 You have \(installed). Download the new version and open it: it replaces \
-                this one in Applications. macOS asks for Accessibility again after the update.
+                this one in Applications.
                 """
             alert.addButton(withTitle: "Download…")
             alert.addButton(withTitle: "Later")

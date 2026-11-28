@@ -25,7 +25,6 @@ public struct PanelNavigator: Equatable, Sendable {
         case ignored
         /// Open the icon at this index of the full, unfiltered list.
         case open(Int)
-        /// Close the panel.
         case close
     }
 

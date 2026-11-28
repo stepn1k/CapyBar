@@ -9,7 +9,7 @@
 - **Network state, read locally.** To show VPN status, CapyBar reads which VPNs are set up and whether one is connected from macOS's System Configuration. Nothing from it is stored or sent.
 - **Stored data.** Only the apps it has seen, which of them are hidden, their order and a few settings, in `UserDefaults` (`app.capybar.CapyBar`). *Open at login* is a standard login item.
 
-Releases are built by GitHub Actions from the tagged commit, with a build provenance attestation. To check a download: `gh attestation verify CapyBar.zip -R stepn1k/CapyBar`.
+Releases are built by GitHub Actions from the tagged commit, with a build provenance attestation. To check a download: `gh attestation verify CapyBar.zip -R stepn1k/CapyBar`. From 0.6 the app is signed with a Developer ID (team `JWZV3K7K8X`) and notarized by Apple: `spctl --assess --verbose=2 /Applications/CapyBar.app`. The signing keys are GitHub secrets that only the release job on `main` can read.
 
 CapyBar calls a private macOS framework (`MenuBarClientCore`). It is loaded at runtime and checked once before the first call; if Apple changed it, CapyBar turns the feature off instead of calling it. See [How it works](docs/HOW_IT_WORKS.md).
 

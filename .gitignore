@@ -12,6 +12,10 @@ DerivedData/
 
 # Signing material and local secrets: never commit these
 *.p12
+*.p8
+*.key
+*.pem
+*.certSigningRequest
 *.cer
 *.mobileprovision
 *.provisionprofile

@@ -18,7 +18,6 @@ public final class RestrictionKeeper {
     public enum Trigger: String, Sendable, CaseIterable {
         /// MenuBarAgent has a new pid: the old restriction died with the old process.
         case agentRestarted
-        /// The Mac woke from sleep.
         case woke
         /// This user's session became active again (fast user switching, screen unlock).
         case sessionActivated
