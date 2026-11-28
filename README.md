@@ -19,7 +19,8 @@
   <a href="https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip"><b>Download</b></a> ·
   <a href="#features">Features</a> ·
   <a href="#install">Install</a> ·
-  <a href="#faq">FAQ</a>
+  <a href="#faq">FAQ</a> ·
+  <a href="https://github.com/stepn1k/CapyBar">⭐ Star</a>
 </p>
 
 <p align="center">
@@ -57,6 +58,7 @@ When a VPN is on, the capybara wears a small shield. The VPN sits at the top of 
 2. Allow Accessibility when asked.
 3. Click the capybara, then the gear, and switch on the apps you want to hide. Their icons move into the panel under the capybara.
 
+If CapyBar helps you, please ⭐ [star it on GitHub](https://github.com/stepn1k/CapyBar). Stars show that people use it and keep the project going.
 ## FAQ
 
 <details>
