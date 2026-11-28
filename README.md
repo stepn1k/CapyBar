@@ -19,8 +19,7 @@
   <a href="https://github.com/stepn1k/CapyBar/releases/latest/download/CapyBar.zip"><b>Download</b></a> ·
   <a href="#features">Features</a> ·
   <a href="#install">Install</a> ·
-  <a href="#faq">FAQ</a> ·
-  <a href="https://github.com/stepn1k/CapyBar">⭐ Star</a>
+  <a href="#faq">FAQ</a>
 </p>
 
 <p align="center">
@@ -33,6 +32,8 @@ Too many menu bar icons, or some stuck behind the notch? CapyBar hides the ones 
 - **One permission.** Accessibility, nothing else.
 - **Safe.** If CapyBar quits or crashes, every icon comes back. Signed and notarized by Apple.
 - **Stays put.** Icons stay hidden after sleep, restarts and app updates.
+
+Want to support the project? Just click the ⭐.
 
 ## Features
 
@@ -58,7 +59,6 @@ When a VPN is on, the capybara wears a small shield. The VPN sits at the top of 
 2. Allow Accessibility when asked.
 3. Click the capybara, then the gear, and switch on the apps you want to hide. Their icons move into the panel under the capybara.
 
-If CapyBar helps you, please ⭐ [star it on GitHub](https://github.com/stepn1k/CapyBar). Stars show that people use it and keep the project going.
 ## FAQ
 
 <details>
