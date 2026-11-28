@@ -95,11 +95,14 @@ jobs:
             -P "$DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign
           rm -f "$RUNNER_TEMP/developer-id.p12"
           # Apple's Developer ID intermediate (G2), checked against its known fingerprint.
-          curl -fsSL https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer -o "$RUNNER_TEMP/g2.cer"
-          FINGERPRINT="$(openssl x509 -inform DER -in "$RUNNER_TEMP/g2.cer" -noout -fingerprint -sha256 | cut -d= -f2)"
-          [[ "$FINGERPRINT" == "F1:6C:D3:C5:4C:7F:83:CE:A4:BF:1A:3E:6A:08:19:C8:AA:A8:E4:A1:52:8F:D1:44:71:5F:35:06:43:D2:DF:3A" ]] \
-            || { echo "::error::Unexpected Developer ID G2 certificate"; exit 1; }
-          security import "$RUNNER_TEMP/g2.cer" -k "$KC"
+          # A .p12 exported from Keychain Access may carry it already.
+          G2_SHA256="F16CD3C54C7F83CEA4BF1A3E6A0819C8AAA8E4A1528FD144715F350643D2DF3A"
+          if ! security find-certificate -a -Z "$KC" | grep -q "SHA-256 hash: $G2_SHA256"; then
+            curl -fsSL https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer -o "$RUNNER_TEMP/g2.cer"
+            FINGERPRINT="$(openssl x509 -inform DER -in "$RUNNER_TEMP/g2.cer" -noout -fingerprint -sha256 | cut -d= -f2 | tr -d :)"
+            [[ "$FINGERPRINT" == "$G2_SHA256" ]] || { echo "::error::Unexpected Developer ID G2 certificate"; exit 1; }
+            security import "$RUNNER_TEMP/g2.cer" -k "$KC"
+          fi
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PASSWORD" "$KC" > /dev/null
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
           printf '%s\n' "$NOTARY_KEY_P8" > "$RUNNER_TEMP/notary.p8"
